@@ -1,0 +1,7 @@
+.DS_Store
+Thumbs.db
+node_modules/
+*.mp3
+*.m4a
+*.wav
+*.flac

@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Juliana Mix</title>
+<meta name="description" content="Player estilo DJ com volume nivelado, estilos identificados automaticamente e modo aleatório por estilo.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@500;700;900&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%276%27 fill=%27%230c0b0a%27/%3E%3Cpath d=%27M11 6h6v15.5a4.5 4.5 0 1 1-3-4.24V10h-3z%27 fill=%27%23ffb02e%27/%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="grain" aria-hidden="true"></div>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-mark" aria-hidden="true"></span>
+    <h1>Juliana<em>Mix</em></h1>
+    <span class="brand-sub">volume nivelado · estilos automáticos · automix</span>
+  </div>
+  <div class="sources">
+    <button id="btnFolder" class="btn btn-primary" title="Adicionar uma pasta inteira de músicas">+ Pasta</button>
+    <button id="btnFiles" class="btn" title="Escolher arquivos avulsos">+ Arquivos</button>
+    <button id="btnReconnect" class="btn btn-ghost hidden" title="Reabrir as pastas usadas da última vez">Reconectar biblioteca</button>
+    <input id="inpFolder" type="file" webkitdirectory directory multiple hidden>
+    <input id="inpFiles" type="file" accept="audio/*,.mp3,.m4a,.aac,.ogg,.oga,.opus,.wav,.flac,.wma" multiple hidden>
+  </div>
+  <div class="status" id="status">
+    <span class="dot"></span><span id="statusText">Arraste músicas ou pastas para cá</span>
+  </div>
+</header>
+
+<main class="console">
+  <!-- DECK A -->
+  <section class="deck deck-a" id="deckA" data-deck="A">
+    <div class="deck-head"><span class="deck-letter">A</span><span class="deck-state" data-role="state">livre</span></div>
+    <div class="deck-cover" data-role="cover"><span class="deck-cover-empty">♪</span></div>
+    <div class="deck-meta">
+      <div class="deck-title" data-role="title">—</div>
+      <div class="deck-artist" data-role="artist">&nbsp;</div>
+      <div class="deck-tags">
+        <span class="chip chip-style" data-role="style">estilo</span>
+        <span class="chip mono" data-role="bpm">— BPM</span>
+        <span class="chip mono" data-role="gain">0.0 dB</span>
+      </div>
+    </div>
+    <canvas class="wave" data-role="wave" width="900" height="120"></canvas>
+    <div class="deck-time mono"><span data-role="elapsed">0:00</span><span data-role="remain">-0:00</span></div>
+  </section>
+
+  <!-- MASTER -->
+  <section class="master">
+    <div class="master-head">MASTER</div>
+    <div class="vu-wrap">
+      <canvas id="vu" class="vu" width="60" height="220"></canvas>
+      <div class="vu-scale mono"><span>0</span><span>-6</span><span>-12</span><span>-18</span><span>-24</span><span>-36</span></div>
+    </div>
+    <div class="transport">
+      <button id="btnPrev" class="tbtn" title="Anterior">⏮</button>
+      <button id="btnPlay" class="tbtn tbtn-big" title="Tocar / Pausar">▶</button>
+      <button id="btnNext" class="tbtn" title="Próxima">⏭</button>
+    </div>
+    <label class="knob-row"><span>Volume</span><input id="volume" type="range" min="0" max="100" value="85"></label>
+    <label class="knob-row"><span>Alvo de volume</span>
+      <select id="target">
+        <option value="-16">-16 LUFS · suave</option>
+        <option value="-14" selected>-14 LUFS · padrão</option>
+        <option value="-12">-12 LUFS · festa</option>
+        <option value="-10">-10 LUFS · alto</option>
+      </select>
+    </label>
+    <label class="knob-row"><span>Crossfade</span>
+      <select id="crossfade">
+        <option value="0">sem mistura</option>
+        <option value="3">3 s</option>
+        <option value="6" selected>6 s</option>
+        <option value="10">10 s</option>
+      </select>
+    </label>
+    <label class="switch-row"><input id="automix" type="checkbox" checked><span>Tocar sem parar (automix)</span></label>
+    <label class="switch-row"><input id="normalize" type="checkbox" checked><span>Nivelar volume</span></label>
+    <div class="next-up"><span class="lbl">a seguir</span><span id="nextUp" class="mono">—</span></div>
+  </section>
+
+  <!-- DECK B -->
+  <section class="deck deck-b" id="deckB" data-deck="B">
+    <div class="deck-head"><span class="deck-letter">B</span><span class="deck-state" data-role="state">livre</span></div>
+    <div class="deck-cover" data-role="cover"><span class="deck-cover-empty">♪</span></div>
+    <div class="deck-meta">
+      <div class="deck-title" data-role="title">—</div>
+      <div class="deck-artist" data-role="artist">&nbsp;</div>
+      <div class="deck-tags">
+        <span class="chip chip-style" data-role="style">estilo</span>
+        <span class="chip mono" data-role="bpm">— BPM</span>
+        <span class="chip mono" data-role="gain">0.0 dB</span>
+      </div>
+    </div>
+    <canvas class="wave" data-role="wave" width="900" height="120"></canvas>
+    <div class="deck-time mono"><span data-role="elapsed">0:00</span><span data-role="remain">-0:00</span></div>
+  </section>
+</main>
+
+<section class="workspace">
+  <aside class="side">
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Estilos</h2>
+        <button id="btnPlayStyles" class="btn btn-primary btn-sm" title="Toca aleatoriamente os estilos marcados">▶ Aleatório</button>
+      </div>
+      <p class="hint">Marque um ou mais estilos. Sem marcar nada, toca tudo.</p>
+      <div id="styles" class="styles"></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Playlists</h2>
+        <button id="btnNewPlaylist" class="btn btn-sm">+ Nova</button>
+      </div>
+      <div id="playlists" class="playlists"></div>
+      <div id="playlistDetail" class="playlist-detail hidden">
+        <div class="playlist-detail-head">
+          <strong id="plName"></strong>
+          <div class="pl-actions">
+            <button id="btnPlayPl" class="btn btn-primary btn-sm">▶ Ordem</button>
+            <button id="btnShufflePl" class="btn btn-sm">🔀 Aleatório</button>
+            <button id="btnDelPl" class="btn btn-ghost btn-sm" title="Apagar playlist">✕</button>
+          </div>
+        </div>
+        <p class="hint">Na biblioteca, use o botão <b>+</b> de cada música para colocar aqui.</p>
+        <ol id="plTracks" class="pl-tracks"></ol>
+      </div>
+    </div>
+  </aside>
+
+  <section class="panel library">
+    <div class="panel-head">
+      <h2>Biblioteca <span id="libCount" class="count mono">0</span></h2>
+      <input id="search" type="search" placeholder="buscar música, artista, estilo…">
+      <select id="filterStyle" title="Filtrar por estilo"><option value="">todos os estilos</option></select>
+      <button id="btnPlayAll" class="btn btn-sm" title="Toca toda a biblioteca embaralhada">🔀 Tudo</button>
+    </div>
+    <div class="table-wrap">
+      <table id="lib" class="lib">
+        <thead>
+          <tr>
+            <th class="col-play"></th>
+            <th class="col-title">Música</th>
+            <th class="col-artist">Artista</th>
+            <th class="col-style">Estilo</th>
+            <th class="col-bpm mono">BPM</th>
+            <th class="col-lufs mono" title="Volume medido e ajuste aplicado">LUFS / ajuste</th>
+            <th class="col-add"></th>
+          </tr>
+        </thead>
+        <tbody id="libBody"></tbody>
+      </table>
+      <div id="libEmpty" class="lib-empty">
+        <div class="big">Sua biblioteca está vazia</div>
+        <p>Clique em <b>+ Pasta</b> ou arraste uma pasta de músicas para qualquer lugar da tela.<br>
+        Cada música é analisada uma vez: volume real, BPM e estilo. Depois fica guardado.</p>
+      </div>
+    </div>
+  </section>
+</section>
+
+<div id="dropOverlay" class="drop-overlay" aria-hidden="true"><div>Solte aqui para adicionar</div></div>
+<div id="toast" class="toast" role="status"></div>
+
+<script src="js/db.js"></script>
+<script src="js/tags.js"></script>
+<script src="js/genres.js"></script>
+<script src="js/analyzer.js"></script>
+<script src="js/player.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
