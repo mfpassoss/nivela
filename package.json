@@ -1,7 +1,7 @@
 {
   "name": "nivela",
   "productName": "Nivela",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Player estilo DJ: volume nivelado, estilos automáticos e automix. Funciona sem internet.",
   "author": "Nivela",
   "license": "UNLICENSED",
@@ -21,7 +21,10 @@
   "build": {
     "appId": "app.nivela.player",
     "productName": "Nivela",
-    "directories": { "buildResources": "desktop/build", "output": "dist" },
+    "directories": {
+      "buildResources": "desktop/build",
+      "output": "dist"
+    },
     "files": [
       "desktop/main.js",
       "index.html",
@@ -32,8 +35,16 @@
       "icons/**"
     ],
     "compression": "maximum",
-    "win": { "target": ["nsis", "portable"], "artifactName": "Nivela-Setup-${version}.${ext}" },
-    "portable": { "artifactName": "Nivela-Portatil-${version}.${ext}" },
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "artifactName": "Nivela-Setup-${version}.${ext}"
+    },
+    "portable": {
+      "artifactName": "Nivela-Portatil-${version}.${ext}"
+    },
     "nsis": {
       "oneClick": false,
       "perMachine": false,
@@ -44,7 +55,19 @@
       "language": "1046",
       "artifactName": "Nivela-Setup-${version}.${ext}"
     },
-    "linux": { "target": ["AppImage"], "category": "AudioVideo", "artifactName": "Nivela-${version}.${ext}" },
-    "mac": { "target": ["dmg"], "category": "public.app-category.music", "artifactName": "Nivela-${version}.${ext}" }
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "AudioVideo",
+      "artifactName": "Nivela-${version}.${ext}"
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "category": "public.app-category.music",
+      "artifactName": "Nivela-${version}.${ext}"
+    }
   }
 }
