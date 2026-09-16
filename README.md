@@ -22,6 +22,7 @@ Feito para milhares de músicas:
 ### De onde tirar música legalmente
 
 - **Palco MP3** e **Sua Música**: artistas independentes disponibilizam download gratuito. Baixe pelo site ou pelo aplicativo deles para a pasta que o Nivela acompanha. Prefira o perfil oficial do artista; coletâneas postadas por terceiros costumam não ser licenciadas.
+- **CDs em .zip**: arraste o arquivo para a tela, sem descompactar. O Nivela abre o zip, lê as músicas de dentro e mantém os acentos do nome, inclusive em arquivos feitos por programas antigos do Windows. Guarde o zip numa pasta acompanhada e ele volta sozinho a cada abertura.
 - **iTunes Store** e **Bandcamp**: compra de faixas avulsas, sem trava, nos formatos que o Nivela toca.
 
 ## O que ele faz com o volume
@@ -64,6 +65,7 @@ MP3, M4A/AAC, OGG, OPUS, WAV e FLAC (o que o navegador souber decodificar). No C
 ## Estrutura
 
 - `index.html`, `css/style.css`: interface.
+- `js/zip.js`: leitura de CDs em .zip sem descompactar (deflate e nomes em UTF-8 ou CP437).
 - `js/tags.js`: leitura de tags ID3 (título, artista, gênero, capa).
 - `js/genres.js`: base de artistas e regras de classificação.
 - `js/analyzer.js`: loudness (BS.1770), pico, forma de onda e BPM.

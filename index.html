@@ -27,11 +27,11 @@
   </div>
   <div class="sources">
     <button id="btnFolder" class="btn btn-primary" title="Adicionar uma pasta inteira de músicas">+ Pasta</button>
-    <button id="btnFiles" class="btn" title="Escolher arquivos avulsos">+ Arquivos</button>
+    <button id="btnFiles" class="btn" title="Escolher músicas ou um CD em zip">+ Arquivos ou ZIP</button>
     <button id="btnReconnect" class="btn btn-ghost hidden" title="Reabrir as pastas usadas da última vez">Reconectar biblioteca</button>
     <button id="btnInstall" class="btn btn-ghost hidden" title="Instalar como aplicativo neste aparelho">⤓ Instalar app</button>
     <input id="inpFolder" type="file" webkitdirectory directory multiple hidden>
-    <input id="inpFiles" type="file" accept="audio/*,.mp3,.m4a,.aac,.ogg,.oga,.opus,.wav,.flac,.wma" multiple hidden>
+    <input id="inpFiles" type="file" accept="audio/*,.mp3,.m4a,.aac,.ogg,.oga,.opus,.wav,.flac,.wma,.zip,application/zip" multiple hidden>
   </div>
   <div class="status" id="status">
     <span class="dot"></span><span id="statusText">Arraste músicas ou pastas para cá</span>
@@ -167,7 +167,7 @@
       <div id="libMore" class="lib-more hidden"></div>
       <div id="libEmpty" class="lib-empty">
         <div class="big">Sua biblioteca está vazia</div>
-        <p>Clique em <b>+ Pasta</b> ou arraste uma pasta de músicas para qualquer lugar da tela.<br>
+        <p>Clique em <b>+ Pasta</b> ou arraste uma pasta de músicas para qualquer lugar da tela.<br>CDs baixados em <b>.zip</b> podem ser arrastados direto, sem descompactar.<br>
         Cada música é analisada uma vez: volume real, BPM e estilo. Depois fica guardado.</p>
       </div>
     </div>
@@ -178,6 +178,7 @@
 <div id="toast" class="toast" role="status"></div>
 
 <script src="js/db.js"></script>
+<script src="js/zip.js"></script>
 <script src="js/tags.js"></script>
 <script src="js/genres.js"></script>
 <script src="js/analyzer.js"></script>

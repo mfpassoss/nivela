@@ -8,10 +8,12 @@
     tableWrap: $('.table-wrap'), libMore: $('#libMore'),
   };
   const AUDIO_RE = /\.(mp3|m4a|aac|ogg|oga|opus|wav|flac|wma|aif|aiff|webm)$/i;
+  const ZIP_RE = /\.zip$/i;
+  const IMPORT_RE = /\.(mp3|m4a|aac|ogg|oga|opus|wav|flac|wma|aif|aiff|webm|zip)$/i;
 
   const state = {
     tracks: new Map(), order: [], playlists: [], selectedStyles: new Set(), currentPlaylist: null,
-    queue: [], pos: -1, mode: null, source: null, roots: [], fileHandles: [], rows: new Map(),
+    queue: [], pos: -1, mode: null, source: null, roots: [], fileHandles: [], rows: new Map(), zips: new Map(),
     visible: [], shown: 0, dupes: new Set(), onlyDupes: false,
   };
 
@@ -38,6 +40,9 @@
     }
     return a;
   }
+  // a faixa está tocável se o arquivo está em mãos ou se o zip de origem está disponível
+  const available = t => !!(t.file || (t.zip && state.zips.has(t.zip.key)));
+
   function persist(t) {
     const { file, cover, _q, _qs, ...rest } = t;
     return DB.put('tracks', rest).catch(e => console.warn('persist', e));
@@ -47,7 +52,7 @@
   /* ---------------- importação ---------------- */
   async function walkHandle(handle, prefix, out) {
     if (handle.kind === 'file') {
-      if (AUDIO_RE.test(handle.name)) { const file = await handle.getFile(); out.push({ file, path: prefix + handle.name }); }
+      if (IMPORT_RE.test(handle.name)) { const file = await handle.getFile(); out.push({ file, path: prefix + handle.name }); }
       return;
     }
     for await (const [name, child] of handle.entries()) {
@@ -58,7 +63,7 @@
   function walkEntry(entry, prefix, out) {
     return new Promise(resolve => {
       if (entry.isFile) {
-        if (!AUDIO_RE.test(entry.name)) return resolve();
+        if (!IMPORT_RE.test(entry.name)) return resolve();
         entry.file(file => { out.push({ file, path: prefix + entry.name }); resolve(); }, () => resolve());
       } else if (entry.isDirectory) {
         const reader = entry.createReader(); const all = [];
@@ -71,14 +76,72 @@
     });
   }
 
+  const zipKey = f => `${f.size}-${f.lastModified}-${f.name}`;
+
+  /**
+   * Troca cada .zip da lista pelas músicas que estão dentro dele.
+   * Só descompacta o que ainda não foi analisado: uma música já conhecida fica marcada
+   * para ser extraída na hora de tocar, então reabrir o programa com muitos CDs é rápido.
+   */
+  async function expandZips(entries) {
+    const out = [];
+    const zips = entries.filter(e => ZIP_RE.test(e.file.name));
+    if (!zips.length) return entries;
+    let n = 0;
+    for (const { file, path } of entries) {
+      if (!ZIP_RE.test(file.name)) { out.push({ file, path }); continue; }
+      const key = zipKey(file);
+      state.zips.set(key, file);
+      setStatus(`Abrindo CD ${++n} de ${zips.length}: ${file.name}`, 'busy');
+      let list;
+      try { list = await Zip.listEntries(file); }
+      catch (e) { console.warn('zip', file.name, e); toast(`Não consegui abrir "${file.name}": ${e.message}`, 4000); continue; }
+      for (const entry of list) {
+        if (entry.name.endsWith('/') || !AUDIO_RE.test(entry.name)) continue;
+        const base = entry.name.split('/').pop();
+        const id = `${entry.rawSize}-${Zip.entryDate(entry)}-${base}`;
+        const inner = `${file.name}/${entry.name}`;
+        const known = state.tracks.get(id);
+        if (known && known.status === 'ok') {
+          // já medida: guarda só a referência e extrai quando for tocar
+          known.zip = { key, entry }; known.path = known.path || inner;
+          persist(known);
+          continue;
+        }
+        try {
+          const blob = await Zip.extract(file, entry);
+          const f = new File([blob], base, { type: 'audio/mpeg', lastModified: Zip.entryDate(entry) });
+          out.push({ file: f, path: inner, zip: { key, entry } });
+        } catch (e) { console.warn('extrair', entry.name, e); }
+        await new Promise(r => setTimeout(r, 0));
+      }
+    }
+    return out;
+  }
+
+  /** Garante que a faixa tem arquivo em mãos, extraindo do zip se for o caso. */
+  async function ensureFile(t) {
+    if (!t || t.file) return !!(t && t.file);
+    if (!t.zip) return false;
+    const zf = state.zips.get(t.zip.key);
+    if (!zf) return false;
+    try {
+      const blob = await Zip.extract(zf, t.zip.entry);
+      t.file = new File([blob], t.name, { type: 'audio/mpeg', lastModified: t.lastModified });
+      return true;
+    } catch (e) { console.warn('extrair na hora de tocar', t.name, e); return false; }
+  }
+
   async function addEntries(entries, { announce = true } = {}) {
+    entries = await expandZips(entries);
     let added = 0, known = 0;
     const fresh = [];
-    for (const { file, path } of entries) {
+    for (const e of entries) {
+      const { file, path } = e;
       const id = trackId(file);
       const existing = state.tracks.get(id);
-      if (existing) { existing.file = file; if (!existing.path) existing.path = path; known++; if (existing.status !== 'ok') queueAnalysis(id); continue; }
-      const t = { id, name: file.name, path, size: file.size, lastModified: file.lastModified, file, title: null, artist: null, album: null,
+      if (existing) { existing.file = file; if (e.zip) existing.zip = e.zip; if (!existing.path) existing.path = path; known++; if (existing.status !== 'ok') queueAnalysis(id); continue; }
+      const t = { id, name: file.name, path, size: file.size, lastModified: file.lastModified, file, zip: e.zip || null, title: null, artist: null, album: null,
         genreTag: null, style: null, styleManual: null, reason: '', bpm: null, loudness: null, peak: null, wave: null, duration: null, status: 'new', added: Date.now() };
       state.tracks.set(id, t); fresh.push(t); added++;
     }
@@ -115,7 +178,7 @@
   async function pickFiles() {
     if (window.showOpenFilePicker) {
       try {
-        const hs = await window.showOpenFilePicker({ multiple: true, types: [{ description: 'Áudio', accept: { 'audio/*': ['.mp3', '.m4a', '.aac', '.ogg', '.opus', '.wav', '.flac'] } }] });
+        const hs = await window.showOpenFilePicker({ multiple: true, types: [{ description: 'Músicas e CDs (zip)', accept: { 'audio/*': ['.mp3', '.m4a', '.aac', '.ogg', '.opus', '.wav', '.flac'], 'application/zip': ['.zip'] } }] });
         const out = [];
         for (const h of hs) { out.push({ file: await h.getFile(), path: h.name }); if (!state.fileHandles.some(x => x.name === h.name)) state.fileHandles.push(h); }
         DB.put('settings', state.fileHandles, 'fileHandles').catch(() => {});
@@ -148,7 +211,7 @@
     }
     await addEntries(entries, { announce: false });
     const added = state.tracks.size - before;
-    const missing = [...state.tracks.values()].filter(t => !t.file).length;
+    const missing = [...state.tracks.values()].filter(t => !available(t)).length;
     $('#btnReconnect').classList.toggle('hidden', denied === 0);
     if (silent && !scanned) return { scanned, added, denied };
     toast(added ? `${added} músicas novas encontradas` :
@@ -167,10 +230,12 @@
   function analyzeOne(id) {
     if (inflight.has(id)) return inflight.get(id);
     const t = state.tracks.get(id);
-    if (!t || !t.file || t.status === 'ok') return Promise.resolve();
+    if (!t || t.status === 'ok') return Promise.resolve();
+    if (!t.file && !t.zip) return Promise.resolve();
     const p = (async () => {
       t.status = 'analyzing'; renderRow(t);
       try {
+        if (!t.file && !(await ensureFile(t))) { t.status = 'new'; renderRow(t); return; }
         const r = await Analyzer.analyze(t.file);
         Object.assign(t, r, { status: 'ok' });
         const c = Genres.classify(t); t.style = c.style; t.reason = c.reason;
@@ -191,7 +256,7 @@
   }
   function updateStatus() {
     const total = state.tracks.size, pend = aq.length + inflight.size;
-    const missing = [...state.tracks.values()].filter(t => !t.file).length;
+    const missing = [...state.tracks.values()].filter(t => !available(t)).length;
     if (!total) setStatus('Arraste músicas ou pastas para cá', '');
     else if (missing && !pend) setStatus(`${total} músicas lembradas · ${missing} sem arquivo: ${state.roots.length || state.fileHandles.length ? 'clique em "Reconectar biblioteca"' : 'adicione a pasta de novo'}`, '');
     else if (pend) setStatus(`${total} músicas · analisando volume (${pend} na fila)`, 'busy');
@@ -257,7 +322,7 @@
   function renderRow(t) {
     const tr = state.rows.get(t.id); if (!tr) return;
     tr.innerHTML = rowHtml(t);
-    tr.className = [t.status === 'error' ? 'err' : '', isCurrent(t.id) ? 'now' : '', t.file ? '' : 'missing', state.dupes.has(t.id) ? 'dupe' : ''].filter(Boolean).join(' ');
+    tr.className = [t.status === 'error' ? 'err' : '', isCurrent(t.id) ? 'now' : '', available(t) ? '' : 'missing', state.dupes.has(t.id) ? 'dupe' : ''].filter(Boolean).join(' ');
   }
   // Com milhares de músicas não dá para criar uma linha para cada uma: monta em blocos
   // e vai acrescentando conforme a pessoa rola a lista.
@@ -330,7 +395,7 @@
   });
   function idsForStyles() {
     const sel = state.selectedStyles;
-    return [...state.tracks.values()].filter(t => t.file && t.status !== 'error' && (!sel.size || sel.has(styleOf(t)))).map(t => t.id);
+    return [...state.tracks.values()].filter(t => available(t) && t.status !== 'error' && (!sel.size || sel.has(styleOf(t)))).map(t => t.id);
   }
   function playStyles() {
     const ids = idsForStyles();
@@ -358,7 +423,7 @@
     const li = e.target.closest('li'); if (!li || li.dataset.i == null) return;
     const i = +li.dataset.i;
     if (e.target.closest('button[data-act=rm]')) { p.trackIds.splice(i, 1); savePlaylists(); renderPlaylists(); }
-    else { startQueue(p.trackIds.filter(id => state.tracks.get(id)?.file), 'playlist', null, false, p.trackIds[i]); }
+    else { startQueue(p.trackIds.filter(id => available(state.tracks.get(id))), 'playlist', null, false, p.trackIds[i]); }
   });
   $('#btnNewPlaylist').addEventListener('click', () => {
     const name = prompt('Nome da playlist:'); if (!name || !name.trim()) return;
@@ -371,8 +436,8 @@
     if (!confirm(`Apagar a playlist "${p.name}"?`)) return;
     state.playlists = state.playlists.filter(x => x !== p); await DB.del('playlists', p.id); state.currentPlaylist = null; renderPlaylists();
   });
-  $('#btnPlayPl').addEventListener('click', () => { const p = state.playlists.find(x => x.id === state.currentPlaylist); if (p) startQueue(p.trackIds.filter(id => state.tracks.get(id)?.file), 'playlist'); });
-  $('#btnShufflePl').addEventListener('click', () => { const p = state.playlists.find(x => x.id === state.currentPlaylist); if (p) startQueue(smartShuffle(p.trackIds.filter(id => state.tracks.get(id)?.file)), 'playlist', () => p.trackIds.filter(id => state.tracks.get(id)?.file), true); });
+  $('#btnPlayPl').addEventListener('click', () => { const p = state.playlists.find(x => x.id === state.currentPlaylist); if (p) startQueue(p.trackIds.filter(id => available(state.tracks.get(id))), 'playlist'); });
+  $('#btnShufflePl').addEventListener('click', () => { const p = state.playlists.find(x => x.id === state.currentPlaylist); if (p) startQueue(smartShuffle(p.trackIds.filter(id => available(state.tracks.get(id)))), 'playlist', () => p.trackIds.filter(id => available(state.tracks.get(id))), true); });
   function addToPlaylist(t) {
     const p = state.playlists.find(x => x.id === state.currentPlaylist);
     if (!p) return toast('Crie ou selecione uma playlist primeiro (painel à esquerda).');
@@ -400,7 +465,8 @@
   let playing = false;
   async function playIndex(i) {
     const id = state.queue[i]; const t = id && state.tracks.get(id);
-    if (!t || !t.file) return next();
+    if (!t) return next();
+    if (!t.file && !(await ensureFile(t))) return next();
     state.pos = i;
     if (t.status !== 'ok' && t.status !== 'error') { setDeckState('analisando…'); await ensureAnalyzed(id); }
     if (t.status === 'error') { toast(`Não consegui tocar "${t.title}"`); return next(); }
@@ -419,8 +485,9 @@
     if (Player.position() > 5 || state.pos <= 0) { Player.seek(0); return; }
     playIndex(state.pos - 1);
   }
-  function playNow(t) {
-    if (!t || !t.file) return toast('Arquivo não está disponível. Reconecte a biblioteca.');
+  async function playNow(t) {
+    if (!t) return;
+    if (!t.file && !(await ensureFile(t))) return toast('Arquivo não está disponível. Use Reconectar biblioteca.');
     if (!state.queue.length) {
       const ids = visibleIds(); state.queue = ids; state.mode = 'library'; state.source = null; state.loop = false;
       return playIndex(Math.max(0, ids.indexOf(t.id)));
@@ -530,7 +597,7 @@
   $('#btnNext').addEventListener('click', () => { if (state.queue.length) next(); });
   $('#btnPrev').addEventListener('click', prev);
   $('#btnPlayStyles').addEventListener('click', playStyles);
-  function playAll() { const ids = [...state.tracks.values()].filter(t => t.file && t.status !== 'error').map(t => t.id); startQueue(smartShuffle(ids), 'all', () => [...state.tracks.values()].filter(t => t.file && t.status !== 'error').map(t => t.id), true); }
+  function playAll() { const pick = () => [...state.tracks.values()].filter(t => available(t) && t.status !== 'error').map(t => t.id); startQueue(smartShuffle(pick()), 'all', pick, true); }
   $('#btnPlayAll').addEventListener('click', playAll);
   $('#volume').addEventListener('input', e => Player.set('volume', e.target.value / 100));
   $('#target').addEventListener('change', e => { Player.set('target', +e.target.value); DB.put('settings', +e.target.value, 'target'); renderLibrary(); renderDecks(); });
@@ -550,7 +617,7 @@
     e.currentTarget.classList.toggle('on', state.onlyDupes);
     renderLibrary();
   });
-  $('#inpFolder').addEventListener('change', e => addEntries([...e.target.files].filter(f => AUDIO_RE.test(f.name)).map(f => ({ file: f, path: f.webkitRelativePath || f.name }))));
+  $('#inpFolder').addEventListener('change', e => addEntries([...e.target.files].filter(f => IMPORT_RE.test(f.name)).map(f => ({ file: f, path: f.webkitRelativePath || f.name }))));
   $('#inpFiles').addEventListener('change', e => addEntries([...e.target.files].map(f => ({ file: f, path: f.name }))));
   document.addEventListener('keydown', e => {
     if (e.target.matches('input,select,textarea')) return;
@@ -573,13 +640,13 @@
       for (const h of handles) {
         if (!h) continue;
         if (h.kind === 'directory') { await walkHandle(h, '', out); if (!state.roots.some(r => r.name === h.name)) state.roots.push(h); }
-        else if (AUDIO_RE.test(h.name)) { out.push({ file: await h.getFile(), path: h.name }); state.fileHandles.push(h); }
+        else if (IMPORT_RE.test(h.name)) { out.push({ file: await h.getFile(), path: h.name }); state.fileHandles.push(h); }
       }
       DB.put('settings', state.roots, 'roots').catch(() => {}); DB.put('settings', state.fileHandles, 'fileHandles').catch(() => {});
     } else if (items.length && items[0].webkitGetAsEntry) {
       for (const it of items) { const en = it.webkitGetAsEntry(); if (en) await walkEntry(en, '', out); }
     } else {
-      for (const f of e.dataTransfer.files) if (AUDIO_RE.test(f.name)) out.push({ file: f, path: f.name });
+      for (const f of e.dataTransfer.files) if (IMPORT_RE.test(f.name)) out.push({ file: f, path: f.name });
     }
     await addEntries(out);
   });
