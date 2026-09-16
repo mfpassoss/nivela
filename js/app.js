@@ -5,12 +5,14 @@
     status: $('#status'), statusText: $('#statusText'), libBody: $('#libBody'), libEmpty: $('#libEmpty'), libCount: $('#libCount'),
     styles: $('#styles'), playlists: $('#playlists'), plDetail: $('#playlistDetail'), plName: $('#plName'), plTracks: $('#plTracks'),
     search: $('#search'), filterStyle: $('#filterStyle'), nextUp: $('#nextUp'), toast: $('#toast'), btnPlay: $('#btnPlay'), vu: $('#vu'),
+    tableWrap: $('.table-wrap'), libMore: $('#libMore'),
   };
   const AUDIO_RE = /\.(mp3|m4a|aac|ogg|oga|opus|wav|flac|wma|aif|aiff|webm)$/i;
 
   const state = {
     tracks: new Map(), order: [], playlists: [], selectedStyles: new Set(), currentPlaylist: null,
     queue: [], pos: -1, mode: null, source: null, roots: [], fileHandles: [], rows: new Map(),
+    visible: [], shown: 0, dupes: new Set(), onlyDupes: false,
   };
 
   /* ---------------- utilidades ---------------- */
@@ -37,7 +39,7 @@
     return a;
   }
   function persist(t) {
-    const { file, cover, ...rest } = t;
+    const { file, cover, _q, _qs, ...rest } = t;
     return DB.put('tracks', rest).catch(e => console.warn('persist', e));
   }
   function setStatus(text, cls) { el.statusText.textContent = text; el.status.className = 'status ' + (cls || ''); }
@@ -92,7 +94,7 @@
         if (++i % 25 === 0) { rebuildOrder(); renderLibrary(); renderStyles(); await new Promise(r => setTimeout(r, 0)); }
       }
     }
-    rebuildOrder(); renderLibrary(); renderStyles(); updateStatus();
+    findDupes(); rebuildOrder(); renderLibrary(); renderStyles(); updateStatus();
     if (announce) toast(added ? `${added} músicas adicionadas${known ? ` (${known} já estavam)` : ''}` : (known ? 'Essas músicas já estão na biblioteca' : 'Nenhum arquivo de áudio encontrado'));
   }
 
@@ -121,25 +123,37 @@
       } catch (e) { if (e.name !== 'AbortError') toast('Não deu para abrir: ' + e.message); }
     } else $('#inpFiles').click();
   }
-  async function reconnect() {
+  /**
+   * Reabre as pastas guardadas e traz arquivos novos que apareceram nelas.
+   * Em modo silencioso só usa pastas cuja permissão já está concedida (não abre caixa de diálogo),
+   * que é o caso da abertura do programa e do botão Reescanear.
+   */
+  async function reconnect({ silent = false } = {}) {
     const entries = [];
-    let denied = 0;
+    let denied = 0, scanned = 0;
+    const before = state.tracks.size;
+    const grant = async h => {
+      if ((await h.queryPermission({ mode: 'read' })) === 'granted') return true;
+      if (silent) return false;
+      return (await h.requestPermission({ mode: 'read' })) === 'granted';
+    };
+    setStatus('Procurando músicas nas pastas…', 'busy');
     for (const h of state.roots) {
-      try {
-        if ((await h.queryPermission({ mode: 'read' })) !== 'granted' && (await h.requestPermission({ mode: 'read' })) !== 'granted') { denied++; continue; }
-        await walkHandle(h, '', entries);
-      } catch (e) { denied++; }
+      try { if (await grant(h)) { await walkHandle(h, '', entries); scanned++; } else denied++; }
+      catch (e) { denied++; }
     }
     for (const h of state.fileHandles) {
-      try {
-        if ((await h.queryPermission({ mode: 'read' })) !== 'granted' && (await h.requestPermission({ mode: 'read' })) !== 'granted') { denied++; continue; }
-        entries.push({ file: await h.getFile(), path: h.name });
-      } catch (e) { denied++; }
+      try { if (await grant(h)) { entries.push({ file: await h.getFile(), path: h.name }); scanned++; } else denied++; }
+      catch (e) { denied++; }
     }
     await addEntries(entries, { announce: false });
+    const added = state.tracks.size - before;
     const missing = [...state.tracks.values()].filter(t => !t.file).length;
-    toast(`Biblioteca reconectada${denied ? ` (${denied} pastas sem permissão)` : ''}${missing ? ` · ${missing} músicas não encontradas` : ''}`);
-    $('#btnReconnect').classList.add('hidden');
+    $('#btnReconnect').classList.toggle('hidden', denied === 0);
+    if (silent && !scanned) return { scanned, added, denied };
+    toast(added ? `${added} músicas novas encontradas` :
+      `Nada novo nas pastas${denied ? ` · ${denied} sem permissão, clique em Reconectar` : ''}${missing ? ` · ${missing} sem arquivo` : ''}`);
+    return { scanned, added, denied };
   }
 
   /* ---------------- análise em fila ---------------- */
@@ -185,16 +199,43 @@
   }
 
   /* ---------------- biblioteca ---------------- */
+  // mesma música vinda de fontes diferentes: agrupa por artista + título
+  const dupeKey = t => Genres.norm((t.artist || '') + '|' + (t.title || ''));
+  function findDupes() {
+    const seen = new Map();
+    state.dupes.clear();
+    for (const t of state.tracks.values()) {
+      const k = dupeKey(t);
+      if (!k || k === '|') continue;
+      if (seen.has(k)) { state.dupes.add(t.id); state.dupes.add(seen.get(k)); }
+      else seen.set(k, t.id);
+    }
+    const btn = $('#btnDupes');
+    btn.textContent = `⧉ Repetidas ${state.dupes.size}`;
+    btn.classList.toggle('hidden', state.dupes.size === 0);
+    if (!state.dupes.size && state.onlyDupes) { state.onlyDupes = false; btn.classList.remove('on'); }
+  }
+
   function rebuildOrder() {
     state.order = [...state.tracks.values()].sort((a, b) => (a.artist || '').localeCompare(b.artist || '', 'pt') || (a.title || '').localeCompare(b.title || '', 'pt')).map(t => t.id);
+  }
+  // o texto de busca de cada faixa é calculado uma vez e reaproveitado (com milhares de músicas,
+  // normalizar tudo a cada tecla digitada deixava a busca lenta)
+  function searchText(t) {
+    if (t._q === undefined || t._qs !== styleOf(t)) {
+      t._qs = styleOf(t);
+      t._q = Genres.norm([t.title, t.artist, t.album, styleLabel(t._qs), t.path].join(' '));
+    }
+    return t._q;
   }
   function visibleIds() {
     const q = Genres.norm(el.search.value), fs = el.filterStyle.value;
     return state.order.filter(id => {
       const t = state.tracks.get(id);
+      if (state.onlyDupes && !state.dupes.has(id)) return false;
       if (fs && styleOf(t) !== fs) return false;
       if (!q) return true;
-      return Genres.norm([t.title, t.artist, t.album, styleLabel(styleOf(t)), t.path].join(' ')).includes(q);
+      return searchText(t).includes(q);
     });
   }
   function styleOptions(sel) {
@@ -211,37 +252,57 @@
       <td class="col-style"><select class="style-select ${t.styleManual ? 'manual' : ''}" data-act="style" title="${esc(t.reason)}">${styleOptions(st)}</select><span class="reason">${t.styleManual ? 'definido por você' : esc(t.reason)}</span></td>
       <td class="col-bpm mono">${t.bpm ?? ''}</td>
       <td class="col-lufs mono">${lufs}${gTxt}</td>
-      <td class="col-add"><button class="rowbtn" data-act="add" title="Adicionar à playlist selecionada">+</button></td>`;
+      <td class="col-add"><button class="rowbtn" data-act="add" title="Adicionar à playlist selecionada">+</button><button class="rowbtn" data-act="del" title="Tirar da biblioteca">✕</button></td>`;
   }
   function renderRow(t) {
     const tr = state.rows.get(t.id); if (!tr) return;
     tr.innerHTML = rowHtml(t);
-    tr.className = (t.status === 'error' ? 'err ' : '') + (isCurrent(t.id) ? 'now' : '') + (t.file ? '' : ' missing');
+    tr.className = [t.status === 'error' ? 'err' : '', isCurrent(t.id) ? 'now' : '', t.file ? '' : 'missing', state.dupes.has(t.id) ? 'dupe' : ''].filter(Boolean).join(' ');
   }
-  function renderLibrary() {
-    const ids = visibleIds();
-    el.libCount.textContent = ids.length === state.tracks.size ? state.tracks.size : `${ids.length} / ${state.tracks.size}`;
-    el.libEmpty.classList.toggle('hidden', state.tracks.size > 0);
+  // Com milhares de músicas não dá para criar uma linha para cada uma: monta em blocos
+  // e vai acrescentando conforme a pessoa rola a lista.
+  const PAGE = 150;
+  function appendRows(n) {
     const frag = document.createDocumentFragment();
-    state.rows.clear();
-    for (const id of ids) {
-      const t = state.tracks.get(id);
+    const end = Math.min(state.visible.length, state.shown + n);
+    for (let i = state.shown; i < end; i++) {
+      const id = state.visible[i], t = state.tracks.get(id);
+      if (!t) continue;
       const tr = document.createElement('tr'); tr.dataset.id = id;
       state.rows.set(id, tr); frag.appendChild(tr); renderRow(t);
     }
-    el.libBody.replaceChildren(frag);
+    state.shown = end;
+    el.libBody.appendChild(frag);
+    const restam = state.shown < state.visible.length;
+    el.libMore.classList.toggle('hidden', !restam);
+    el.libMore.textContent = restam ? `mostrando ${state.shown} de ${state.visible.length} — role para ver mais` : '';
   }
+  function renderLibrary() {
+    state.visible = visibleIds();
+    el.libCount.textContent = state.visible.length === state.tracks.size ? state.tracks.size : `${state.visible.length} / ${state.tracks.size}`;
+    el.libEmpty.classList.toggle('hidden', state.tracks.size > 0);
+    state.rows.clear(); state.shown = 0;
+    el.libBody.replaceChildren();
+    appendRows(PAGE);
+  }
+  el.tableWrap.addEventListener('scroll', () => {
+    if (state.shown >= state.visible.length) return;
+    const w = el.tableWrap;
+    if (w.scrollTop + w.clientHeight >= w.scrollHeight - 400) appendRows(PAGE);
+  });
   el.libBody.addEventListener('click', e => {
     const b = e.target.closest('button[data-act]'); if (!b) return;
     const id = e.target.closest('tr').dataset.id, t = state.tracks.get(id);
     if (b.dataset.act === 'play') playNow(t);
     if (b.dataset.act === 'add') addToPlaylist(t);
+    if (b.dataset.act === 'del') removeTrack(t);
   });
   el.libBody.addEventListener('dblclick', e => { const tr = e.target.closest('tr'); if (tr && !e.target.closest('select,button')) playNow(state.tracks.get(tr.dataset.id)); });
   el.libBody.addEventListener('change', e => {
     const s = e.target.closest('select[data-act=style]'); if (!s) return;
     const t = state.tracks.get(e.target.closest('tr').dataset.id);
     t.styleManual = s.value === t.style ? null : s.value;
+    t._q = undefined;
     persist(t); renderRow(t); renderStyles();
   });
   el.search.addEventListener('input', renderLibrary);
@@ -367,6 +428,19 @@
     state.queue.splice(state.pos + 1, 0, t.id);
     playIndex(state.pos + 1);
   }
+  /** Tira a música da biblioteca do Nivela. O arquivo no computador não é apagado. */
+  function removeTrack(t) {
+    state.tracks.delete(t.id);
+    DB.del('tracks', t.id).catch(() => {});
+    for (const p of state.playlists) {
+      const i = p.trackIds.indexOf(t.id);
+      if (i >= 0) { p.trackIds.splice(i, 1); savePlaylists(); }
+    }
+    state.queue = state.queue.filter(id => id !== t.id);
+    findDupes(); rebuildOrder(); renderLibrary(); renderStyles(); renderPlaylists(); updateStatus();
+    toast(`"${t.title}" saiu da biblioteca (o arquivo continua no computador)`);
+  }
+
   function renderNextUp() {
     const nid = state.queue[state.pos + 1]; const t = nid && state.tracks.get(nid);
     el.nextUp.textContent = t ? `${t.artist ? t.artist + ' – ' : ''}${t.title}` : (state.source ? '(nova rodada)' : '—');
@@ -465,7 +539,17 @@
   $('#normalize').addEventListener('change', e => { Player.set('normalize', e.target.checked); renderDecks(); });
   $('#btnFolder').addEventListener('click', pickFolder);
   $('#btnFiles').addEventListener('click', pickFiles);
-  $('#btnReconnect').addEventListener('click', reconnect);
+  $('#btnReconnect').addEventListener('click', () => reconnect());
+  $('#btnRescan').addEventListener('click', async () => {
+    if (!state.roots.length && !state.fileHandles.length) return toast('Adicione uma pasta primeiro, com o botão + Pasta.');
+    const r = await reconnect({ silent: true });
+    if (!r.scanned) toast('As pastas precisam de permissão. Clique em "Reconectar biblioteca".');
+  });
+  $('#btnDupes').addEventListener('click', e => {
+    state.onlyDupes = !state.onlyDupes;
+    e.currentTarget.classList.toggle('on', state.onlyDupes);
+    renderLibrary();
+  });
   $('#inpFolder').addEventListener('change', e => addEntries([...e.target.files].filter(f => AUDIO_RE.test(f.name)).map(f => ({ file: f, path: f.webkitRelativePath || f.name }))));
   $('#inpFiles').addEventListener('change', e => addEntries([...e.target.files].map(f => ({ file: f, path: f.name }))));
   document.addEventListener('keydown', e => {
@@ -511,9 +595,13 @@
       const target = await DB.get('settings', 'target'); if (target) { $('#target').value = target; Player.set('target', target); }
       const cf = await DB.get('settings', 'crossfade'); if (cf != null) { $('#crossfade').value = cf; Player.set('crossfade', cf); }
     } catch (e) { console.warn('sem persistência', e); }
-    rebuildOrder(); renderLibrary(); renderStyles(); renderPlaylists(); renderDecks(); updateStatus();
+    findDupes(); rebuildOrder(); renderLibrary(); renderStyles(); renderPlaylists(); renderDecks(); updateStatus();
     if (state.roots.length || state.fileHandles.length) {
       $('#btnReconnect').classList.remove('hidden');
+      // tenta sozinho: se a permissão das pastas continua valendo, a biblioteca volta
+      // e os arquivos baixados desde a última vez entram sem precisar de clique
+      const r = await reconnect({ silent: true });
+      if (r.scanned && r.added) toast(`${r.added} músicas novas encontradas nas pastas`);
     }
     if (!window.showDirectoryPicker) toast('Dica: no Chrome ou Edge a biblioteca fica lembrada entre sessões.', 5000);
   }

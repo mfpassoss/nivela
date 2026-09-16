@@ -9,7 +9,20 @@ Player estilo DJ que roda no navegador, sem instalar nada. Ele lê as músicas d
 3. Espere a barra de status dizer "tudo nivelado". Cada música é analisada uma única vez e o resultado fica guardado no navegador.
 4. Marque os estilos que quer ouvir e clique em **▶ Aleatório**. Sem marcar nada, toca tudo.
 
-Na próxima vez que abrir, clique em **Reconectar biblioteca**: o Chrome pede permissão para a pasta de novo e tudo volta sem precisar analisar outra vez.
+Na próxima vez que abrir, o Nivela reabre as pastas sozinho e já traz o que apareceu de novo nelas. Se o navegador tiver esquecido a permissão, use **Reconectar biblioteca**. As músicas já analisadas não são analisadas de novo.
+
+## Biblioteca grande
+
+Feito para milhares de músicas:
+
+- **⟳ Reescanear**: procura arquivos novos nas pastas já adicionadas. Baixou um CD? Clique aqui (ou apenas reabra o programa) e ele entra.
+- **⧉ Repetidas**: mostra as músicas que aparecem duas vezes (mesmo artista e título vindos de fontes diferentes). O **✕** de cada linha tira a música da biblioteca; o arquivo continua no computador.
+- A lista carrega por partes conforme você rola, então abrir com 5.000 músicas é tão rápido quanto com 50.
+
+### De onde tirar música legalmente
+
+- **Palco MP3** e **Sua Música**: artistas independentes disponibilizam download gratuito. Baixe pelo site ou pelo aplicativo deles para a pasta que o Nivela acompanha. Prefira o perfil oficial do artista; coletâneas postadas por terceiros costumam não ser licenciadas.
+- **iTunes Store** e **Bandcamp**: compra de faixas avulsas, sem trava, nos formatos que o Nivela toca.
 
 ## O que ele faz com o volume
 

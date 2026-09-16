@@ -145,6 +145,8 @@
       <h2>Biblioteca <span id="libCount" class="count mono">0</span></h2>
       <input id="search" type="search" placeholder="buscar música, artista, estilo…">
       <select id="filterStyle" title="Filtrar por estilo"><option value="">todos os estilos</option></select>
+      <button id="btnRescan" class="btn btn-sm" title="Procurar músicas novas nas pastas já adicionadas">⟳ Reescanear</button>
+      <button id="btnDupes" class="btn btn-sm hidden" title="Mostrar só as músicas repetidas">⧉ Repetidas 0</button>
       <button id="btnPlayAll" class="btn btn-sm" title="Toca toda a biblioteca embaralhada">🔀 Tudo</button>
     </div>
     <div class="table-wrap">
@@ -162,6 +164,7 @@
         </thead>
         <tbody id="libBody"></tbody>
       </table>
+      <div id="libMore" class="lib-more hidden"></div>
       <div id="libEmpty" class="lib-empty">
         <div class="big">Sua biblioteca está vazia</div>
         <p>Clique em <b>+ Pasta</b> ou arraste uma pasta de músicas para qualquer lugar da tela.<br>

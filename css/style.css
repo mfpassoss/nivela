@@ -150,14 +150,20 @@ input[type=range]{accent-color:var(--amber)}
 .lib tr.now td.col-title{color:var(--amber)}
 .lib tr.err td{color:var(--ink-3);text-decoration:line-through}
 .lib tr.missing td{opacity:.45}
-.col-play{width:34px}.col-add{width:36px}.col-bpm{width:64px;text-align:right}.col-lufs{width:130px;text-align:right}.col-style{width:190px}
+.lib tr.dupe td.col-title::after{content:"repetida";margin-left:8px;font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--amber-2);border:1px solid var(--amber-2);border-radius:3px;padding:1px 4px;opacity:.8}
+.btn.on{border-color:var(--amber);color:var(--amber);background:rgba(255,176,46,.12)}
+.lib-more{padding:10px;text-align:center;color:var(--ink-3);font-size:11px;letter-spacing:.06em;text-transform:uppercase;border-top:1px solid var(--line)}
+.col-play{width:34px}.col-add{width:64px;white-space:nowrap}.col-bpm{width:64px;text-align:right}.col-lufs{width:130px;text-align:right}.col-style{width:190px}
 .col-title{width:38%}.col-artist{width:26%}
 .lib .sub{display:block;color:var(--ink-3);font-size:11px;overflow:hidden;text-overflow:ellipsis}
 .lib .col-lufs{color:var(--ink-2)}
 .lib .col-lufs .up{color:var(--green)}.lib .col-lufs .down{color:var(--amber-2)}
 .lib .pending{color:var(--ink-3);font-style:italic}
-.rowbtn{background:none;border:1px solid transparent;border-radius:4px;color:var(--ink-2);cursor:pointer;padding:3px 6px;font-size:13px}
+.lib td.col-add,.lib td.col-play{max-width:none;overflow:visible}
+.lib td.col-add{text-align:right}
+.rowbtn{background:none;border:1px solid transparent;border-radius:4px;color:var(--ink-2);cursor:pointer;padding:3px 5px;font-size:13px;line-height:1;vertical-align:middle}
 .rowbtn:hover{border-color:var(--line-2);color:var(--amber)}
+.rowbtn[data-act=del]:hover{color:var(--red);border-color:var(--red)}
 .style-select{width:100%;padding:3px 4px;font-size:12px;background:transparent;border-color:transparent;color:var(--ink-2)}
 .style-select:hover,.style-select:focus{border-color:var(--line-2);background:var(--bg-2)}
 .style-select.manual{color:var(--amber)}
