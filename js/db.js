@@ -1,6 +1,6 @@
 /* Persistência local (IndexedDB): faixas analisadas, playlists e configurações. */
 const DB = (() => {
-  const NAME = 'julianamix', VERSION = 1;
+  const NAME = 'nivela', VERSION = 1;
   let dbp = null;
 
   function open() {

@@ -1,10 +1,10 @@
-# Juliana Mix
+# Nivela
 
 Player estilo DJ que roda no navegador, sem instalar nada. Ele lê as músicas direto do computador, **nivela o volume de todas as faixas**, identifica o estilo (sertanejo universitário, sofrência, modão, pagode, forró…) e toca aleatório por estilo com emenda automática entre as músicas.
 
 ## Como usar
 
-1. Abra `index.html` no **Chrome** ou **Edge** (ou publique no GitHub Pages, veja abaixo).
+1. Abra o link publicado (veja "Instalar" abaixo) ou o arquivo `index.html` no **Chrome** ou **Edge**.
 2. Clique em **+ Pasta** e escolha a pasta de músicas. Também dá para arrastar pastas ou arquivos para a tela.
 3. Espere a barra de status dizer "tudo nivelado". Cada música é analisada uma única vez e o resultado fica guardado no navegador.
 4. Marque os estilos que quer ouvir e clique em **▶ Aleatório**. Sem marcar nada, toca tudo.
@@ -23,9 +23,15 @@ Na ordem: artista conhecido (base com centenas de artistas brasileiros e interna
 
 Crie uma playlist em **+ Nova**, selecione-a e use o botão **+** de cada música na biblioteca. A playlist toca em ordem ou aleatório.
 
-## Publicar no GitHub Pages
+## Instalar como aplicativo
 
-Ao fazer merge na branch `main`, o workflow em `.github/workflows/pages.yml` publica o site automaticamente. Se for a primeira vez, confira em *Settings → Pages* que a fonte está como "GitHub Actions".
+O Nivela é um PWA. Abrindo o link publicado no Chrome ou Edge (PC ou Android), aparece o botão **⤓ Instalar app** no topo (ou o ícone de instalar na barra de endereço). Ele passa a abrir em janela própria, com ícone na área de trabalho ou na tela inicial, e funciona sem internet. No iPhone: Safari → Compartilhar → "Adicionar à Tela de Início".
+
+Atualizações chegam sozinhas: ao abrir o app com internet, a versão nova é baixada e um aviso pede para recarregar.
+
+## Publicar
+
+O workflow em `.github/workflows/pages.yml` publica no GitHub Pages a cada push na branch padrão. O GitHub Pages exige repositório público em contas gratuitas.
 
 ## Formatos e navegadores
 

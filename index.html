@@ -3,8 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Juliana Mix</title>
-<meta name="description" content="Player estilo DJ com volume nivelado, estilos identificados automaticamente e modo aleatório por estilo.">
+<title>Nivela</title>
+<meta name="description" content="Nivela: player estilo DJ com volume nivelado, estilos identificados automaticamente e modo aleatório por estilo.">
+<meta name="theme-color" content="#0c0b0a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Nivela">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@500;700;900&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -17,13 +24,14 @@
 <header class="topbar">
   <div class="brand">
     <span class="brand-mark" aria-hidden="true"></span>
-    <h1>Juliana<em>Mix</em></h1>
+    <h1>Nive<em>la</em></h1>
     <span class="brand-sub">volume nivelado · estilos automáticos · automix</span>
   </div>
   <div class="sources">
     <button id="btnFolder" class="btn btn-primary" title="Adicionar uma pasta inteira de músicas">+ Pasta</button>
     <button id="btnFiles" class="btn" title="Escolher arquivos avulsos">+ Arquivos</button>
     <button id="btnReconnect" class="btn btn-ghost hidden" title="Reabrir as pastas usadas da última vez">Reconectar biblioteca</button>
+    <button id="btnInstall" class="btn btn-ghost hidden" title="Instalar como aplicativo neste aparelho">⤓ Instalar app</button>
     <input id="inpFolder" type="file" webkitdirectory directory multiple hidden>
     <input id="inpFiles" type="file" accept="audio/*,.mp3,.m4a,.aac,.ogg,.oga,.opus,.wav,.flac,.wma" multiple hidden>
   </div>
@@ -174,5 +182,6 @@
 <script src="js/analyzer.js"></script>
 <script src="js/player.js"></script>
 <script src="js/app.js"></script>
+<script src="js/pwa.js"></script>
 </body>
 </html>
