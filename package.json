@@ -1,0 +1,50 @@
+{
+  "name": "nivela",
+  "productName": "Nivela",
+  "version": "1.0.0",
+  "description": "Player estilo DJ: volume nivelado, estilos automáticos e automix. Funciona sem internet.",
+  "author": "Nivela",
+  "license": "UNLICENSED",
+  "private": true,
+  "main": "desktop/main.js",
+  "scripts": {
+    "start": "electron .",
+    "web": "http-server -p 8080 -c-1 .",
+    "dist:win": "electron-builder --win nsis portable --publish never",
+    "dist:linux": "electron-builder --linux AppImage --publish never",
+    "dist:mac": "electron-builder --mac dmg --publish never"
+  },
+  "devDependencies": {
+    "electron": "^38.0.0",
+    "electron-builder": "^26.0.0"
+  },
+  "build": {
+    "appId": "app.nivela.player",
+    "productName": "Nivela",
+    "directories": { "buildResources": "desktop/build", "output": "dist" },
+    "files": [
+      "desktop/main.js",
+      "index.html",
+      "manifest.webmanifest",
+      "css/**",
+      "js/**",
+      "fonts/**",
+      "icons/**"
+    ],
+    "compression": "maximum",
+    "win": { "target": ["nsis", "portable"], "artifactName": "Nivela-Setup-${version}.${ext}" },
+    "portable": { "artifactName": "Nivela-Portatil-${version}.${ext}" },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Nivela",
+      "language": "1046",
+      "artifactName": "Nivela-Setup-${version}.${ext}"
+    },
+    "linux": { "target": ["AppImage"], "category": "AudioVideo", "artifactName": "Nivela-${version}.${ext}" },
+    "mac": { "target": ["dmg"], "category": "public.app-category.music", "artifactName": "Nivela-${version}.${ext}" }
+  }
+}

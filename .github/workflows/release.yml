@@ -1,0 +1,39 @@
+name: Gerar instalador
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+permissions:
+  contents: write
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run dist:win
+      - name: Ler versão
+        id: v
+        shell: bash
+        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nivela-windows
+          path: |
+            dist/*.exe
+      - name: Publicar release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.v.outputs.version }}
+          name: Nivela ${{ steps.v.outputs.version }}
+          body: |
+            **Nivela-Setup-${{ steps.v.outputs.version }}.exe**: instalador para Windows (cria atalho na área de trabalho).
+            **Nivela-Portatil-${{ steps.v.outputs.version }}.exe**: versão portátil, roda direto do pendrive sem instalar.
+
+            Funciona sem internet. Na primeira abertura o Windows SmartScreen pode avisar que o programa não é reconhecido: clique em "Mais informações" → "Executar assim mesmo".
+          files: |
+            dist/*.exe

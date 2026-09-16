@@ -23,7 +23,18 @@ Na ordem: artista conhecido (base com centenas de artistas brasileiros e interna
 
 Crie uma playlist em **+ Nova**, selecione-a e use o botão **+** de cada música na biblioteca. A playlist toca em ordem ou aleatório.
 
-## Instalar como aplicativo
+## Instalar no Windows (funciona sem internet)
+
+Baixe em [Releases](../../releases/latest):
+
+- **Nivela-Setup-x.y.z.exe**: instalador normal. Cria atalho na área de trabalho e no menu Iniciar.
+- **Nivela-Portatil-x.y.z.exe**: roda direto de um pendrive, sem instalar.
+
+Tudo vem dentro do programa (navegador embutido, fontes, análise). Não precisa de internet em momento nenhum. Na primeira abertura o Windows SmartScreen pode avisar que o programa não é reconhecido (não é assinado digitalmente): "Mais informações" → "Executar assim mesmo".
+
+Para gerar um instalador novo: em *Actions → Gerar instalador → Run workflow*, ou crie uma tag `vX.Y.Z`. O instalador aparece em Releases em poucos minutos. Para rodar em desenvolvimento: `npm install` e `npm start`.
+
+## Instalar como aplicativo web (PWA)
 
 O Nivela é um PWA. Abrindo o link publicado no Chrome ou Edge (PC ou Android), aparece o botão **⤓ Instalar app** no topo (ou o ícone de instalar na barra de endereço). Ele passa a abrir em janela própria, com ícone na área de trabalho ou na tela inicial, e funciona sem internet. No iPhone: Safari → Compartilhar → "Adicionar à Tela de Início".
 
@@ -46,3 +57,6 @@ MP3, M4A/AAC, OGG, OPUS, WAV e FLAC (o que o navegador souber decodificar). No C
 - `js/player.js`: dois decks, crossfade, ganho por faixa, limitador e medidor.
 - `js/db.js`: persistência local (IndexedDB).
 - `js/app.js`: importação, fila de análise, estilos, playlists e fila de reprodução.
+- `js/pwa.js`, `sw.js`, `manifest.webmanifest`: instalação como app web e funcionamento offline no navegador.
+- `desktop/main.js`, `package.json`: aplicativo de mesa (Electron) e configuração do instalador.
+- `fonts/`: fontes empacotadas (licença OFL) para não depender de internet.
