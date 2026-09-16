@@ -59,15 +59,18 @@
   <!-- MASTER -->
   <section class="master">
     <div class="master-head">MASTER</div>
-    <div class="vu-wrap">
-      <canvas id="vu" class="vu" width="60" height="220"></canvas>
-      <div class="vu-scale mono"><span>0</span><span>-6</span><span>-12</span><span>-18</span><span>-24</span><span>-36</span></div>
+    <div class="master-left">
+      <div class="vu-wrap">
+        <canvas id="vu" class="vu" width="60" height="220"></canvas>
+        <div class="vu-scale mono"><span>0</span><span>-6</span><span>-12</span><span>-18</span><span>-24</span><span>-36</span></div>
+      </div>
+      <div class="transport">
+        <button id="btnPrev" class="tbtn" title="Anterior">⏮</button>
+        <button id="btnPlay" class="tbtn tbtn-big" title="Tocar / Pausar">▶</button>
+        <button id="btnNext" class="tbtn" title="Próxima">⏭</button>
+      </div>
     </div>
-    <div class="transport">
-      <button id="btnPrev" class="tbtn" title="Anterior">⏮</button>
-      <button id="btnPlay" class="tbtn tbtn-big" title="Tocar / Pausar">▶</button>
-      <button id="btnNext" class="tbtn" title="Próxima">⏭</button>
-    </div>
+    <div class="master-right">
     <label class="knob-row"><span>Volume</span><input id="volume" type="range" min="0" max="100" value="85"></label>
     <label class="knob-row"><span>Alvo de volume</span>
       <select id="target">
@@ -87,6 +90,7 @@
     </label>
     <label class="switch-row"><input id="automix" type="checkbox" checked><span>Tocar sem parar (automix)</span></label>
     <label class="switch-row"><input id="normalize" type="checkbox" checked><span>Nivelar volume</span></label>
+    </div>
     <div class="next-up"><span class="lbl">a seguir</span><span id="nextUp" class="mono">—</span></div>
   </section>
 
