@@ -1,10 +1,15 @@
 # Nivela
 
+### ▶ Abrir o player: **https://mfpassoss.github.io/nivela/**
+### ⤓ Baixar para Windows: **[Releases](https://github.com/mfpassoss/nivela/releases/latest)**
+
+---
+
 Player estilo DJ que roda no navegador, sem instalar nada. Ele lê as músicas direto do computador, **nivela o volume de todas as faixas**, identifica o estilo (sertanejo universitário, sofrência, modão, pagode, forró…) e toca aleatório por estilo com emenda automática entre as músicas.
 
 ## Como usar
 
-1. Abra o link publicado (veja "Instalar" abaixo) ou o arquivo `index.html` no **Chrome** ou **Edge**.
+1. Abra **https://mfpassoss.github.io/nivela/** no **Chrome** ou **Edge**.
 2. Clique em **+ Pasta** e escolha a pasta de músicas. Também dá para arrastar pastas ou arquivos para a tela.
 3. Espere a barra de status dizer "tudo nivelado". Cada música é analisada uma única vez e o resultado fica guardado no navegador.
 4. Marque os estilos que quer ouvir e clique em **▶ Aleatório**. Sem marcar nada, toca tudo.
