@@ -7,9 +7,23 @@
     search: $('#search'), filterStyle: $('#filterStyle'), nextUp: $('#nextUp'), toast: $('#toast'), btnPlay: $('#btnPlay'), vu: $('#vu'),
     tableWrap: $('.table-wrap'), libMore: $('#libMore'),
   };
-  const AUDIO_RE = /\.(mp3|m4a|aac|ogg|oga|opus|wav|flac|wma|aif|aiff|webm)$/i;
+  const AUDIO_RE = /\.(mp3|m4a|aac|ogg|oga|opus|wav|flac|wma|aif|aiff)$/i;
+  const VIDEO_RE = /\.(mp4|m4v|mov|webm|mkv|avi|wmv|mpg|mpeg|3gp|ts)$/i;
+  const MEDIA_RE = /\.(mp3|m4a|aac|ogg|oga|opus|wav|flac|wma|aif|aiff|mp4|m4v|mov|webm|mkv|avi|wmv|mpg|mpeg|3gp|ts)$/i;
   const ZIP_RE = /\.zip$/i;
-  const IMPORT_RE = /\.(mp3|m4a|aac|ogg|oga|opus|wav|flac|wma|aif|aiff|webm|zip)$/i;
+  // pergunta ao próprio programa o que ele sabe tocar, em vez de chutar por extensão
+  const TIPOS = { mp4: 'video/mp4; codecs="avc1.42E01E, mp4a.40.2"', m4v: 'video/mp4; codecs="avc1.42E01E, mp4a.40.2"',
+    webm: 'video/webm; codecs="vp8, vorbis"', mov: 'video/quicktime', mkv: 'video/x-matroska',
+    avi: 'video/x-msvideo', wmv: 'video/x-ms-wmv', mpg: 'video/mpeg', mpeg: 'video/mpeg', '3gp': 'video/3gpp', ts: 'video/mp2t' };
+  const provador = document.createElement('video');
+  const suporteCache = new Map();
+  function formatoSuportado(nome) {
+    const ext = (nome.split('.').pop() || '').toLowerCase();
+    if (!TIPOS[ext]) return true;                       // áudio: deixa a análise decidir
+    if (!suporteCache.has(ext)) suporteCache.set(ext, !!provador.canPlayType(TIPOS[ext]));
+    return suporteCache.get(ext);
+  }
+  const IMPORT_RE = /\.(mp3|m4a|aac|ogg|oga|opus|wav|flac|wma|aif|aiff|mp4|m4v|mov|webm|mkv|avi|wmv|mpg|mpeg|3gp|ts|zip)$/i;
 
   const state = {
     tracks: new Map(), order: [], playlists: [], selectedStyles: new Set(), currentPlaylist: null,
@@ -42,6 +56,7 @@
   }
   // a faixa está tocável se o arquivo está em mãos ou se o zip de origem está disponível
   const available = t => !!(t.file || (t.zip && state.zips.has(t.zip.key)));
+  const tocavel = t => available(t) && t.status !== 'error' && t.status !== 'unsupported';
 
   function persist(t) {
     const { file, cover, _q, _qs, ...rest } = t;
@@ -97,7 +112,7 @@
       try { list = await Zip.listEntries(file); }
       catch (e) { console.warn('zip', file.name, e); toast(`Não consegui abrir "${file.name}": ${e.message}`, 4000); continue; }
       for (const entry of list) {
-        if (entry.name.endsWith('/') || !AUDIO_RE.test(entry.name)) continue;
+        if (entry.name.endsWith('/') || !MEDIA_RE.test(entry.name)) continue;
         const base = entry.name.split('/').pop();
         const id = `${entry.rawSize}-${Zip.entryDate(entry)}-${base}`;
         const inner = `${file.name}/${entry.name}`;
@@ -141,7 +156,8 @@
       const id = trackId(file);
       const existing = state.tracks.get(id);
       if (existing) { existing.file = file; if (e.zip) existing.zip = e.zip; if (!existing.path) existing.path = path; known++; if (existing.status !== 'ok') queueAnalysis(id); continue; }
-      const t = { id, name: file.name, path, size: file.size, lastModified: file.lastModified, file, zip: e.zip || null, title: null, artist: null, album: null,
+      const ehVideo = VIDEO_RE.test(file.name);
+      const t = { id, name: file.name, path, size: file.size, lastModified: file.lastModified, file, zip: e.zip || null, video: ehVideo, semSuporte: ehVideo && !formatoSuportado(file.name), title: null, artist: null, album: null,
         genreTag: null, style: null, styleManual: null, reason: '', bpm: null, loudness: null, peak: null, wave: null, duration: null, status: 'new', added: Date.now() };
       state.tracks.set(id, t); fresh.push(t); added++;
     }
@@ -153,12 +169,14 @@
         const fn = Tags.fromFilename(t.name);
         t.title = tags.title || fn.title || t.name; t.artist = tags.artist || fn.artist || ''; t.album = tags.album || ''; t.genreTag = tags.genre || null;
         const c = Genres.classify(t); t.style = c.style; t.reason = c.reason;
-        persist(t); queueAnalysis(t.id);
+        if (t.semSuporte) { t.status = 'unsupported'; persist(t); }
+        else { persist(t); queueAnalysis(t.id); }
         if (++i % 25 === 0) { rebuildOrder(); renderLibrary(); renderStyles(); await new Promise(r => setTimeout(r, 0)); }
       }
     }
     findDupes(); rebuildOrder(); renderLibrary(); renderStyles(); updateStatus();
-    if (announce) toast(added ? `${added} músicas adicionadas${known ? ` (${known} já estavam)` : ''}` : (known ? 'Essas músicas já estão na biblioteca' : 'Nenhum arquivo de áudio encontrado'));
+    const semSuporte = [...state.tracks.values()].filter(t => t.status === 'unsupported').length;
+    if (announce) toast(added ? `${added} faixas adicionadas${known ? ` (${known} já estavam)` : ''}${semSuporte ? ` · ${semSuporte} em formato não suportado` : ''}` : (known ? 'Essas faixas já estão na biblioteca' : 'Nenhuma música ou clipe encontrado'), semSuporte ? 5000 : 2600);
   }
 
   async function addDirectoryHandle(handle, remember = true) {
@@ -230,7 +248,7 @@
   function analyzeOne(id) {
     if (inflight.has(id)) return inflight.get(id);
     const t = state.tracks.get(id);
-    if (!t || t.status === 'ok') return Promise.resolve();
+    if (!t || t.status === 'ok' || t.status === 'unsupported') return Promise.resolve();
     if (!t.file && !t.zip) return Promise.resolve();
     const p = (async () => {
       t.status = 'analyzing'; renderRow(t);
@@ -289,7 +307,7 @@
   function searchText(t) {
     if (t._q === undefined || t._qs !== styleOf(t)) {
       t._qs = styleOf(t);
-      t._q = Genres.norm([t.title, t.artist, t.album, styleLabel(t._qs), t.path].join(' '));
+      t._q = Genres.norm([t.title, t.artist, t.album, styleLabel(t._qs), t.path, t.video ? 'clipe video' : ''].join(' '));
     }
     return t._q;
   }
@@ -308,11 +326,14 @@
   }
   function rowHtml(t) {
     const st = styleOf(t);
-    const lufs = t.status === 'ok' ? (t.loudness > -69 ? t.loudness.toFixed(1) : 'sil.') : t.status === 'analyzing' ? '<span class="pending">medindo…</span>' : t.status === 'error' ? '<span class="pending">erro</span>' : '<span class="pending">na fila</span>';
+    const lufs = t.status === 'ok' ? (t.loudness > -69 ? t.loudness.toFixed(1) : 'sil.') :
+      t.status === 'analyzing' ? '<span class="pending">medindo…</span>' :
+      t.status === 'unsupported' ? '<span class="pending" title="Formato que o Nivela não toca. Converta para MP4 (H.264) e ele entra.">não suportado</span>' :
+      t.status === 'error' ? '<span class="pending">erro</span>' : '<span class="pending">na fila</span>';
     const g = t.status === 'ok' ? Player.gainDb(t) : null;
     const gTxt = g == null ? '' : ` <span class="${g >= 0 ? 'up' : 'down'}">${g >= 0 ? '+' : ''}${g.toFixed(1)}</span>`;
     return `<td class="col-play"><button class="rowbtn" data-act="play" title="Tocar agora">▶</button></td>
-      <td class="col-title" title="${esc(t.path)}">${esc(t.title)}<span class="sub">${esc(t.album || t.path)}</span></td>
+      <td class="col-title" title="${esc(t.path)}">${t.video ? '<span class="tag-video" title="clipe em vídeo">clipe</span>' : ''}${esc(t.title)}<span class="sub">${esc(t.album || t.path)}</span></td>
       <td class="col-artist">${esc(t.artist)}</td>
       <td class="col-style"><select class="style-select ${t.styleManual ? 'manual' : ''}" data-act="style" title="${esc(t.reason)}">${styleOptions(st)}</select><span class="reason">${t.styleManual ? 'definido por você' : esc(t.reason)}</span></td>
       <td class="col-bpm mono">${t.bpm ?? ''}</td>
@@ -322,7 +343,7 @@
   function renderRow(t) {
     const tr = state.rows.get(t.id); if (!tr) return;
     tr.innerHTML = rowHtml(t);
-    tr.className = [t.status === 'error' ? 'err' : '', isCurrent(t.id) ? 'now' : '', available(t) ? '' : 'missing', state.dupes.has(t.id) ? 'dupe' : ''].filter(Boolean).join(' ');
+    tr.className = [t.status === 'error' || t.status === 'unsupported' ? 'err' : '', isCurrent(t.id) ? 'now' : '', available(t) ? '' : 'missing', state.dupes.has(t.id) ? 'dupe' : ''].filter(Boolean).join(' ');
   }
   // Com milhares de músicas não dá para criar uma linha para cada uma: monta em blocos
   // e vai acrescentando conforme a pessoa rola a lista.
@@ -395,7 +416,7 @@
   });
   function idsForStyles() {
     const sel = state.selectedStyles;
-    return [...state.tracks.values()].filter(t => available(t) && t.status !== 'error' && (!sel.size || sel.has(styleOf(t)))).map(t => t.id);
+    return [...state.tracks.values()].filter(t => tocavel(t) && (!sel.size || sel.has(styleOf(t)))).map(t => t.id);
   }
   function playStyles() {
     const ids = idsForStyles();
@@ -469,6 +490,7 @@
     if (!t.file && !(await ensureFile(t))) return next();
     state.pos = i;
     if (t.status !== 'ok' && t.status !== 'error') { setDeckState('analisando…'); await ensureAnalyzed(id); }
+    if (t.status === 'unsupported') { toast(`"${t.title}" está num formato que o Nivela não toca. Converta para MP4.`, 5000); return next(); }
     if (t.status === 'error') { toast(`Não consegui tocar "${t.title}"`); return next(); }
     const ok = await Player.play(t);
     if (!ok) return;
@@ -487,6 +509,7 @@
   }
   async function playNow(t) {
     if (!t) return;
+    if (t.status === 'unsupported') return toast(`"${t.title}" está num formato que o Nivela não toca (${(t.name.split('.').pop() || '').toUpperCase()}). Converta para MP4 e ele entra.`, 6000);
     if (!t.file && !(await ensureFile(t))) return toast('Arquivo não está disponível. Use Reconectar biblioteca.');
     if (!state.queue.length) {
       const ids = visibleIds(); state.queue = ids; state.mode = 'library'; state.source = null; state.loop = false;
@@ -516,6 +539,13 @@
     for (const [id, tr] of state.rows) tr.classList.toggle('now', isCurrent(id));
     renderPlaylists();
   }
+  let avisouTela = false;
+  Player.on('started', d => {
+    if (d.track && d.track.video && !avisouTela && (!tela || tela.closed)) {
+      avisouTela = true;
+      toast('Isso é um clipe. Clique em "🖥 Tela de vídeo" para jogar a imagem na TV.', 6000);
+    }
+  });
   Player.on('needNext', () => next());
   Player.on('stopped', () => { renderDecks(); highlightCurrent(); el.btnPlay.textContent = '▶'; });
   Player.on('error', (d) => toast(`Erro ao tocar "${d.track?.title || ''}"`));
@@ -530,7 +560,7 @@
   async function renderDeck(d) {
     const root = deckEls[d.i], t = d.track;
     root.classList.toggle('live', d.state === 'playing');
-    q(root, 'state').textContent = d.state === 'idle' ? 'livre' : d.state === 'loading' ? 'carregando' : d.state === 'fading' ? 'saindo' : d.state === 'error' ? 'erro' : d.audio.paused ? 'pausado' : 'no ar';
+    q(root, 'state').textContent = d.state === 'idle' ? 'livre' : d.state === 'loading' ? 'carregando' : d.state === 'fading' ? 'saindo' : d.state === 'error' ? 'erro' : d.media.paused ? 'pausado' : 'no ar';
     q(root, 'title').textContent = t ? t.title : '—';
     q(root, 'artist').innerHTML = t ? esc(t.artist || '&nbsp;') : '&nbsp;';
     const st = q(root, 'style'); st.textContent = t ? styleLabel(styleOf(t)) : 'estilo'; st.style.color = t ? styleColor(styleOf(t)) : '';
@@ -538,19 +568,41 @@
     const g = t ? Player.gainDb(t) : 0;
     q(root, 'gain').textContent = t && t.loudness != null ? `${t.loudness.toFixed(1)} LUFS · ${g >= 0 ? '+' : ''}${g.toFixed(1)} dB` : (t ? 'sem medição' : '0.0 dB');
     const cover = q(root, 'cover');
-    if (!t) { cover.innerHTML = '<span class="deck-cover-empty">♪</span>'; cover.dataset.id = ''; }
+    // os decks só nascem no primeiro play, então a prévia é encaixada aqui, na primeira vez.
+    // O elemento fica dentro do deck e ligado à mesa de som: levá-lo para outra janela mataria o áudio.
+    if (d.media.parentElement !== cover) { d.media.classList.add('deck-video'); cover.appendChild(d.media); }
+    const comImagem = Player.hasPicture(d);
+    cover.classList.toggle('has-video', comImagem);
+    root.classList.toggle('is-video', !!(t && t.video));
+    if (!t) { setCoverArt(cover, null); cover.dataset.id = ''; }
     else if (cover.dataset.id !== t.id) {
-      cover.dataset.id = t.id; cover.innerHTML = '<span class="deck-cover-empty">♪</span>';
-      const tags = await Tags.read(t.file, { picture: true });
-      if (tags.picture && cover.dataset.id === t.id) { const img = new Image(); img.src = URL.createObjectURL(tags.picture); img.onload = () => URL.revokeObjectURL(img.src); cover.replaceChildren(img); }
+      cover.dataset.id = t.id; setCoverArt(cover, null);
+      if (!t.video && t.file) {
+        const tags = await Tags.read(t.file, { picture: true });
+        if (tags.picture && cover.dataset.id === t.id) setCoverArt(cover, tags.picture);
+      }
     }
     drawWave(d);
   }
+  /** troca só a arte da capa, sem mexer no <video> que mora dentro da mesma caixa */
+  function setCoverArt(cover, blob) {
+    const old = cover.querySelector('img, .deck-cover-empty');
+    if (old) { if (old.tagName === 'IMG') URL.revokeObjectURL(old.src); old.remove(); }
+    if (blob) {
+      const img = new Image(); img.src = URL.createObjectURL(blob);
+      cover.insertBefore(img, cover.firstChild);
+    } else {
+      const span = document.createElement('span');
+      span.className = 'deck-cover-empty'; span.textContent = '♪';
+      cover.insertBefore(span, cover.firstChild);
+    }
+  }
+
   function drawWave(d) {
     const root = deckEls[d.i], c = q(root, 'wave'), ctx = c.getContext('2d'), t = d.track;
     const W = c.width, H = c.height;
     ctx.clearRect(0, 0, W, H);
-    const dur = d.audio.duration, cur = d.audio.currentTime;
+    const dur = d.media.duration, cur = d.media.currentTime;
     const frac = t && isFinite(dur) && dur > 0 ? cur / dur : 0;
     q(root, 'elapsed').textContent = fmtTime(cur);
     q(root, 'remain').textContent = '-' + fmtTime((isFinite(dur) ? dur : (t?.duration || 0)) - cur);
@@ -589,6 +641,22 @@
   drawVu();
 
   /* ---------------- controles ---------------- */
+  /* ---------------- janela de vídeo ---------------- */
+  let tela = null;
+  function abrirTela() {
+    if (tela && !tela.closed) { tela.focus(); return; }
+    tela = window.open('tela.html', 'nivela-tela', 'width=1000,height=580,menubar=no,toolbar=no,location=no,status=no');
+    if (!tela) return toast('O navegador bloqueou a janela. Permita janelas pop-up para este endereço.', 5000);
+    marcarTela(true);
+    const vigia = setInterval(() => { if (!tela || tela.closed) { clearInterval(vigia); marcarTela(false); } }, 1000);
+  }
+  function marcarTela(aberta) {
+    const b = $('#btnTela');
+    b.classList.toggle('on', aberta);
+    b.textContent = aberta ? '🖥 Tela aberta' : '🖥 Tela de vídeo';
+  }
+  $('#btnTela').addEventListener('click', abrirTela);
+
   el.btnPlay.addEventListener('click', () => {
     if (Player.current()) { el.btnPlay.textContent = Player.toggle() ? '❚❚' : '▶'; return; }
     if (state.queue.length && state.pos >= 0) return playIndex(state.pos);
@@ -597,7 +665,7 @@
   $('#btnNext').addEventListener('click', () => { if (state.queue.length) next(); });
   $('#btnPrev').addEventListener('click', prev);
   $('#btnPlayStyles').addEventListener('click', playStyles);
-  function playAll() { const pick = () => [...state.tracks.values()].filter(t => available(t) && t.status !== 'error').map(t => t.id); startQueue(smartShuffle(pick()), 'all', pick, true); }
+  function playAll() { const pick = () => [...state.tracks.values()].filter(tocavel).map(t => t.id); startQueue(smartShuffle(pick()), 'all', pick, true); }
   $('#btnPlayAll').addEventListener('click', playAll);
   $('#volume').addEventListener('input', e => Player.set('volume', e.target.value / 100));
   $('#target').addEventListener('change', e => { Player.set('target', +e.target.value); DB.put('settings', +e.target.value, 'target'); renderLibrary(); renderDecks(); });

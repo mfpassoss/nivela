@@ -5,7 +5,7 @@
 
 ---
 
-Player estilo DJ que roda no navegador, sem instalar nada. Ele lê as músicas direto do computador, **nivela o volume de todas as faixas**, identifica o estilo (sertanejo universitário, sofrência, modão, pagode, forró…) e toca aleatório por estilo com emenda automática entre as músicas.
+Player estilo DJ que roda no navegador, sem instalar nada. Ele lê músicas **e clipes** direto do computador, **nivela o volume de todas as faixas**, identifica o estilo (sertanejo universitário, sofrência, modão, pagode, forró…) e toca aleatório por estilo com emenda automática entre as faixas.
 
 ## Como usar
 
@@ -15,6 +15,17 @@ Player estilo DJ que roda no navegador, sem instalar nada. Ele lê as músicas d
 4. Marque os estilos que quer ouvir e clique em **▶ Aleatório**. Sem marcar nada, toca tudo.
 
 Na próxima vez que abrir, o Nivela reabre as pastas sozinho e já traz o que apareceu de novo nelas. Se o navegador tiver esquecido a permissão, use **Reconectar biblioteca**. As músicas já analisadas não são analisadas de novo.
+
+## Clipes em vídeo
+
+Clipe entra na mesma biblioteca e usa a mesma mesa: mesmo nivelamento de volume, mesmo aleatório por estilo, mesma emenda automática. Música e clipe se misturam na mesma sequência.
+
+- **🖥 Tela de vídeo**: abre uma janela só com a imagem. Arraste para a TV ou projetor e aperte **Tela cheia** (ou tecle F, ou dê duplo clique). O som continua saindo pela janela principal.
+- A imagem cruza junto com o som: quando um clipe emenda no outro, a imagem também faz a passagem.
+- Quando a faixa é só música, a tela mostra um cartão com o nome de quem está tocando, em vez de ficar preta.
+- Na janela da tela, **espaço** pausa e **seta para a direita** pula, sem precisar voltar para a janela principal.
+
+**Formatos**: MP4 com H.264 e AAC (o formato da quase totalidade dos clipes) e WebM. **MKV, AVI, MOV e WMV não tocam** — o Nivela avisa na hora da importação, marcando a faixa como "não suportado" em vez de falhar na hora do evento. Converta para MP4 e ela entra.
 
 ## Biblioteca grande
 
@@ -65,7 +76,7 @@ O workflow em `.github/workflows/pages.yml` publica no GitHub Pages a cada push 
 
 ## Formatos e navegadores
 
-MP3, M4A/AAC, OGG, OPUS, WAV e FLAC (o que o navegador souber decodificar). No Chrome e Edge a biblioteca fica lembrada entre sessões. Firefox e Safari funcionam, mas é preciso adicionar a pasta a cada abertura (a análise fica guardada mesmo assim).
+Música: MP3, M4A/AAC, OGG, OPUS, WAV e FLAC. Vídeo: MP4 (H.264/AAC) e WebM. No Chrome e Edge a biblioteca fica lembrada entre sessões. Firefox e Safari funcionam, mas é preciso adicionar a pasta a cada abertura (a análise fica guardada mesmo assim).
 
 ## Estrutura
 
@@ -74,7 +85,8 @@ MP3, M4A/AAC, OGG, OPUS, WAV e FLAC (o que o navegador souber decodificar). No C
 - `js/tags.js`: leitura de tags ID3 (título, artista, gênero, capa).
 - `js/genres.js`: base de artistas e regras de classificação.
 - `js/analyzer.js`: loudness (BS.1770), pico, forma de onda e BPM.
-- `js/player.js`: dois decks, crossfade, ganho por faixa, limitador e medidor.
+- `js/player.js`: dois decks (música ou clipe), crossfade, ganho por faixa, limitador e medidor.
+- `tela.html`, `js/tela.js`: janela de vídeo, com a imagem dos dois decks cruzando junto com o som.
 - `js/db.js`: persistência local (IndexedDB).
 - `js/app.js`: importação, fila de análise, estilos, playlists e fila de reprodução.
 - `js/pwa.js`, `sw.js`, `manifest.webmanifest`: instalação como app web e funcionamento offline no navegador.

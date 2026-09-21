@@ -1,7 +1,7 @@
 /* Service worker do Nivela: deixa o app abrir sem internet e atualiza sozinho quando há versão nova. */
-const VERSION = 'nivela-v4';
-const SHELL = ['./', './index.html', './css/style.css', './manifest.webmanifest',
-  './js/db.js', './js/zip.js', './js/tags.js', './js/genres.js', './js/analyzer.js', './js/player.js', './js/app.js', './js/pwa.js',
+const VERSION = 'nivela-v5';
+const SHELL = ['./', './index.html', './tela.html', './css/style.css', './manifest.webmanifest',
+  './js/db.js', './js/zip.js', './js/tags.js', './js/genres.js', './js/analyzer.js', './js/player.js', './js/app.js', './js/pwa.js', './js/tela.js',
   './icons/icon-192.png', './icons/icon-512.png', './icons/icon-maskable-512.png', './fonts/fonts.css',
   './fonts/BigShouldersDisplay-500-latin-ext.woff2', './fonts/BigShouldersDisplay-500-latin.woff2', './fonts/BigShouldersDisplay-700-latin-ext.woff2', './fonts/BigShouldersDisplay-700-latin.woff2', './fonts/BigShouldersDisplay-900-latin-ext.woff2', './fonts/BigShouldersDisplay-900-latin.woff2', './fonts/InstrumentSans-400-latin-ext.woff2', './fonts/InstrumentSans-400-latin.woff2', './fonts/InstrumentSans-400i-latin-ext.woff2', './fonts/InstrumentSans-400i-latin.woff2', './fonts/InstrumentSans-500-latin-ext.woff2', './fonts/InstrumentSans-500-latin.woff2', './fonts/InstrumentSans-600-latin-ext.woff2', './fonts/InstrumentSans-600-latin.woff2', './fonts/JetBrainsMono-400-latin-ext.woff2', './fonts/JetBrainsMono-400-latin.woff2', './fonts/JetBrainsMono-600-latin-ext.woff2', './fonts/JetBrainsMono-600-latin.woff2'];
 

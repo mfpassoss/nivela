@@ -1,5 +1,7 @@
-/* Motor de reprodução: 2 decks (elemento <audio> → ganho de nivelamento → fade → master → limitador → saída).
-   O crossfade acontece entre os decks; o ganho por faixa vem da medição de loudness. */
+/* Motor de reprodução: 2 decks (elemento <video> → ganho de nivelamento → fade → master → limitador → saída).
+   Serve tanto para música quanto para clipe: o elemento é sempre <video>, e uma faixa só de áudio
+   simplesmente não tem imagem. O crossfade acontece entre os decks, tanto no som quanto na imagem;
+   o ganho por faixa vem da medição de loudness. */
 const Player = (() => {
   let ctx = null, master, limiter, analyser, levelBuf;
   const decks = [];
@@ -34,16 +36,19 @@ const Player = (() => {
     levelBuf = new Float32Array(analyser.fftSize);
     master.connect(limiter); limiter.connect(analyser); analyser.connect(ctx.destination);
     for (let i = 0; i < 2; i++) {
-      const audio = new Audio(); audio.preload = 'auto';
-      const src = ctx.createMediaElementSource(audio);
+      const media = document.createElement('video');
+      media.preload = 'auto'; media.playsInline = true; media.disablePictureInPicture = true;
+      media.setAttribute('playsinline', ''); media.crossOrigin = 'anonymous';
+      const src = ctx.createMediaElementSource(media);
       const trim = ctx.createGain(); const fade = ctx.createGain(); fade.gain.value = 0;
       src.connect(trim); trim.connect(fade); fade.connect(master);
-      const d = { i, audio, trim, fade, track: null, url: null, state: 'idle', transitioning: false };
-      audio.addEventListener('timeupdate', () => onTime(d));
-      audio.addEventListener('ended', () => onEnded(d));
-      audio.addEventListener('error', () => { if (d.state !== 'idle') { d.state = 'error'; emit('deck', d); emit('error', d); } });
-      audio.addEventListener('pause', () => emit('deck', d));
-      audio.addEventListener('play', () => emit('deck', d));
+      const d = { i, media, trim, fade, track: null, url: null, state: 'idle', transitioning: false };
+      media.addEventListener('timeupdate', () => onTime(d));
+      media.addEventListener('ended', () => onEnded(d));
+      media.addEventListener('error', () => { if (d.state !== 'idle') { d.state = 'error'; emit('deck', d); emit('error', d); } });
+      media.addEventListener('pause', () => emit('deck', d));
+      media.addEventListener('play', () => emit('deck', d));
+      media.addEventListener('loadedmetadata', () => emit('deck', d));
       decks.push(d);
     }
   }
@@ -51,9 +56,9 @@ const Player = (() => {
   function onTime(d) {
     emit('progress', d);
     if (d.i !== active || d.state !== 'playing' || d.transitioning) return;
-    const dur = d.audio.duration;
+    const dur = d.media.duration;
     if (!settings.automix || !isFinite(dur) || dur <= 0) return;
-    const remain = dur - d.audio.currentTime;
+    const remain = dur - d.media.currentTime;
     const lead = settings.crossfade > 0 ? settings.crossfade + 0.3 : 0.05;
     if (remain <= lead) { d.transitioning = true; emit('needNext', d); }
   }
@@ -67,11 +72,11 @@ const Player = (() => {
   }
 
   function stopDeck(d) {
-    d.audio.pause();
+    d.media.pause();
     d.fade.gain.cancelScheduledValues(ctx.currentTime); d.fade.gain.value = 0;
     d.state = 'idle'; d.transitioning = false; d.track = null;
     if (d.url) { URL.revokeObjectURL(d.url); d.url = null; }
-    d.audio.removeAttribute('src'); d.audio.load();
+    d.media.removeAttribute('src'); d.media.load();
     emit('deck', d);
   }
 
@@ -96,14 +101,14 @@ const Player = (() => {
     if (d.state !== 'idle') stopDeck(d);
     d.track = track; d.state = 'loading'; d.transitioning = false;
     d.url = URL.createObjectURL(track.file);
-    d.audio.src = d.url;
+    d.media.src = d.url;
     d.trim.gain.value = dbToLin(gainDb(track));
     d.fade.gain.cancelScheduledValues(ctx.currentTime); d.fade.gain.value = 0;
     emit('deck', d);
-    try { await d.audio.play(); } catch (e) { if (token === playToken) { d.state = 'error'; emit('deck', d); emit('error', d, e); } return false; }
+    try { await d.media.play(); } catch (e) { if (token === playToken) { d.state = 'error'; emit('deck', d); emit('error', d, e); } return false; }
     if (token !== playToken) return false;
     d.state = 'playing'; active = d.i;
-    const cf = out && out.state === 'playing' && !out.audio.paused ? settings.crossfade : 0;
+    const cf = out && out.state === 'playing' && !out.media.paused ? settings.crossfade : 0;
     ramp(d.fade.gain, 1, cf);
     if (out) {
       if (cf > 0) {
@@ -116,16 +121,18 @@ const Player = (() => {
     return true;
   }
 
+  /** true quando o deck tem imagem para mostrar (clipe), false para faixa só de som. */
+  const hasPicture = d => !!(d && d.media && d.media.videoWidth > 0 && d.state !== 'idle');
   function current() { return active >= 0 ? decks[active] : null; }
-  function isPlaying() { const d = current(); return !!d && d.state === 'playing' && !d.audio.paused; }
+  function isPlaying() { const d = current(); return !!d && d.state === 'playing' && !d.media.paused; }
   function toggle() {
     const d = current(); if (!d) return false;
-    if (d.audio.paused) { ctx.resume(); d.audio.play(); decks.forEach(x => x.state === 'fading' && x.audio.play()); return true; }
-    decks.forEach(x => x.state !== 'idle' && x.audio.pause()); return false;
+    if (d.media.paused) { ctx.resume(); d.media.play(); decks.forEach(x => x.state === 'fading' && x.media.play()); return true; }
+    decks.forEach(x => x.state !== 'idle' && x.media.pause()); return false;
   }
   function stop() { decks.forEach(stopDeck); active = -1; emit('stopped'); }
-  function seek(frac) { const d = current(); if (!d || !isFinite(d.audio.duration)) return; d.audio.currentTime = frac * d.audio.duration; }
-  function position() { const d = current(); return d ? d.audio.currentTime : 0; }
+  function seek(frac) { const d = current(); if (!d || !isFinite(d.media.duration)) return; d.media.currentTime = frac * d.media.duration; }
+  function position() { const d = current(); return d ? d.media.currentTime : 0; }
 
   function set(key, val) {
     settings[key] = val;
@@ -144,5 +151,8 @@ const Player = (() => {
     return { rms: 20 * Math.log10(rms + 1e-9), peak: 20 * Math.log10(p + 1e-9), reduction: limiter.reduction || 0 };
   }
 
-  return { on, play, toggle, stop, seek, position, set, settings, gainDb, current, isPlaying, level, decks };
+  return { on, play, toggle, stop, seek, position, set, settings, gainDb, current, isPlaying, level, decks, hasPicture };
 })();
+
+// a janela de vídeo (tela.html) lê o motor por aqui
+window.Player = Player;

@@ -77,6 +77,11 @@ h1,h2{margin:0;font-family:var(--font-display);text-transform:uppercase;letter-s
 .deck.live .deck-state{color:var(--deck)}
 .deck-cover{width:96px;height:96px;border-radius:6px;background:#0a0908;border:1px solid var(--line);overflow:hidden;display:grid;place-items:center;color:var(--ink-3);font-size:30px}
 .deck-cover img{width:100%;height:100%;object-fit:cover;display:block}
+.deck-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none;background:#000}
+.deck-cover{position:relative}
+.deck-cover.has-video .deck-video{display:block}
+.deck-cover.has-video .deck-cover-empty,.deck-cover.has-video img{visibility:hidden}
+.deck.is-video .deck-letter::after{content:"▶";font-size:11px;vertical-align:super;margin-left:3px;opacity:.8}
 .deck-meta{min-width:0}
 .deck-title{font-family:var(--font-display);font-size:26px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;line-height:1.05;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -161,6 +166,8 @@ input[type=range]{accent-color:var(--amber)}
 .col-play{width:34px}.col-add{width:64px;white-space:nowrap}.col-bpm{width:58px;text-align:right}.col-lufs{width:158px;text-align:right;padding-right:14px}.col-style{width:186px}
 .col-title{width:34%}.col-artist{width:20%}
 .lib .sub{display:block;color:var(--ink-3);font-size:11px;overflow:hidden;text-overflow:ellipsis}
+.tag-video{display:inline-block;margin-right:6px;padding:1px 5px;border-radius:3px;border:1px solid var(--teal-2);color:var(--teal);
+  font-size:9px;text-transform:uppercase;letter-spacing:.08em;vertical-align:1px}
 .lib .col-lufs{color:var(--ink-2)}
 .lib .col-lufs .up{color:var(--green)}.lib .col-lufs .down{color:var(--amber-2)}
 .lib .pending{color:var(--ink-3);font-style:italic}

@@ -23,15 +23,16 @@
   <div class="brand">
     <span class="brand-mark" aria-hidden="true"></span>
     <h1>Nive<em>la</em></h1>
-    <span class="brand-sub">volume nivelado · estilos automáticos · automix</span>
+    <span class="brand-sub">volume nivelado · estilos automáticos · música e clipe</span>
   </div>
   <div class="sources">
     <button id="btnFolder" class="btn btn-primary" title="Adicionar uma pasta inteira de músicas">+ Pasta</button>
-    <button id="btnFiles" class="btn" title="Escolher músicas ou um CD em zip">+ Arquivos ou ZIP</button>
+    <button id="btnFiles" class="btn" title="Escolher músicas, clipes ou um CD em zip">+ Arquivos ou ZIP</button>
     <button id="btnReconnect" class="btn btn-ghost hidden" title="Reabrir as pastas usadas da última vez">Reconectar biblioteca</button>
+    <button id="btnTela" class="btn" title="Abre uma janela só com a imagem, para arrastar até a TV ou o projetor">🖥 Tela de vídeo</button>
     <button id="btnInstall" class="btn btn-ghost hidden" title="Instalar como aplicativo neste aparelho">⤓ Instalar app</button>
     <input id="inpFolder" type="file" webkitdirectory directory multiple hidden>
-    <input id="inpFiles" type="file" accept="audio/*,.mp3,.m4a,.aac,.ogg,.oga,.opus,.wav,.flac,.wma,.zip,application/zip" multiple hidden>
+    <input id="inpFiles" type="file" accept="audio/*,video/*,.mp3,.m4a,.aac,.ogg,.oga,.opus,.wav,.flac,.wma,.mp4,.m4v,.mov,.webm,.mkv,.zip,application/zip" multiple hidden>
   </div>
   <div class="status" id="status">
     <span class="dot"></span><span id="statusText">Arraste músicas ou pastas para cá</span>
@@ -171,7 +172,7 @@
       <div id="libMore" class="lib-more hidden"></div>
       <div id="libEmpty" class="lib-empty">
         <div class="big">Sua biblioteca está vazia</div>
-        <p>Clique em <b>+ Pasta</b> ou arraste uma pasta de músicas para qualquer lugar da tela.<br>CDs baixados em <b>.zip</b> podem ser arrastados direto, sem descompactar.<br>
+        <p>Clique em <b>+ Pasta</b> ou arraste uma pasta de músicas para qualquer lugar da tela.<br>CDs baixados em <b>.zip</b> podem ser arrastados direto, sem descompactar.<br>Clipes em <b>.mp4</b> entram na mesma lista e tocam na mesma mesa.<br>
         Cada música é analisada uma vez: volume real, BPM e estilo. Depois fica guardado.</p>
       </div>
     </div>

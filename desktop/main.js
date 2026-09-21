@@ -16,7 +16,17 @@ function createWindow() {
     webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, backgroundThrottling: false },
   });
   win.loadFile(path.join(__dirname, '..', 'index.html'));
-  win.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: 'deny' }; });
+  // a tela de vídeo é uma janela do próprio programa; qualquer endereço de fora vai para o navegador
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith('file://')) {
+      return { action: 'allow', overrideBrowserWindowOptions: {
+        width: 1100, height: 640, backgroundColor: '#000', title: 'Nivela · Tela',
+        autoHideMenuBar: true, icon: path.join(__dirname, 'build', process.platform === 'win32' ? 'icon.ico' : 'icon.png'),
+        webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, backgroundThrottling: false },
+      } };
+    }
+    shell.openExternal(url); return { action: 'deny' };
+  });
   win.webContents.on('will-navigate', e => e.preventDefault());
 }
 

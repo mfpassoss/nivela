@@ -1,7 +1,7 @@
 {
   "name": "Nivela",
   "short_name": "Nivela",
-  "description": "Player estilo DJ: volume nivelado, estilos automáticos e automix.",
+  "description": "Player estilo DJ para música e clipe: volume nivelado, estilos automáticos e automix.",
   "lang": "pt-BR",
   "start_url": "./",
   "scope": "./",

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nivela · Tela</title>
+<link rel="stylesheet" href="fonts/fonts.css">
+<style>
+  :root{--amber:#ffb02e;--ink:#f1e9dc;--ink-3:#6f675b}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:#000;overflow:hidden;cursor:none;
+    font-family:"Instrument Sans",sans-serif;color:var(--ink)}
+  body.show-cursor{cursor:default}
+  canvas{display:block;width:100%;height:100%}
+  .bar{position:fixed;left:0;right:0;bottom:0;display:flex;gap:10px;align-items:center;justify-content:center;
+    padding:10px;background:linear-gradient(0deg,rgba(0,0,0,.85),transparent);opacity:0;transition:opacity .25s;pointer-events:none}
+  body.show-cursor .bar{opacity:1;pointer-events:auto}
+  .bar button{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);color:var(--ink);
+    border-radius:6px;padding:7px 14px;font:600 13px "Instrument Sans",sans-serif;cursor:pointer}
+  .bar button:hover{border-color:var(--amber);color:var(--amber)}
+  .bar .hint{color:var(--ink-3);font-size:12px;margin-left:8px}
+  .lost{position:fixed;inset:0;display:none;place-items:center;text-align:center;padding:40px;font-size:18px;color:var(--ink-3)}
+  body.lost .lost{display:grid}
+  body.lost canvas{opacity:.15}
+</style>
+</head>
+<body>
+<canvas id="tela"></canvas>
+<div class="lost">A janela principal do Nivela foi fechada.<br>Feche esta tela e abra de novo pelo botão <b>Tela de vídeo</b>.</div>
+<div class="bar">
+  <button id="btnFull">Tela cheia</button>
+  <button id="btnInfo">Mostrar/ocultar nome</button>
+  <span class="hint">Mova o mouse para ver estes botões. Duplo clique também abre tela cheia.</span>
+</div>
+<script src="js/tela.js"></script>
+</body>
+</html>
