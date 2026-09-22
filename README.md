@@ -58,10 +58,17 @@ Na linha da biblioteca há um seletor: **música e clipe**, **só música** ou *
 
 Arraste qualquer faixa da biblioteca para cima de um deck:
 
-- **Deck que está no ar** → toca agora, com a emenda de sempre.
-- **Deck livre** (ou o campo **a seguir**) → entra como a próxima, sem cortar o que está tocando.
+- **Deck que está no ar** → toca agora.
+- **Deck livre** (ou o campo **a seguir**) → fica carregada e parada nele, marcada como **na espera**, até a faixa atual acabar.
 
-O deck mostra o que vai acontecer antes de você soltar.
+O deck mostra o que vai acontecer antes de você soltar. A próxima da fila sempre aparece esperando no deck livre, com capa, estilo, BPM, volume medido e forma de onda, mesmo sem arrastar nada.
+
+## Os dois tempos de passagem
+
+São dois ajustes separados no painel Master, porque a situação é diferente:
+
+- **Emenda automática** (padrão 6 s): quando a faixa acaba sozinha e a próxima entra.
+- **Troca manual** (padrão 3 s): quando você aperta Próxima, clica numa música ou arrasta para o deck no ar. Mais curto de propósito, porque aí você quer que a troca aconteça.
 
 ## Playlists
 

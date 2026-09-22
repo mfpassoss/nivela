@@ -7,7 +7,7 @@ const Player = (() => {
   const decks = [];
   let active = -1;
   const handlers = {};
-  const settings = { target: -14, crossfade: 6, automix: true, normalize: true, volume: 0.85 };
+  const settings = { target: -14, crossfade: 6, crossfadeManual: 3, automix: true, normalize: true, volume: 0.85 };
   let playToken = 0;
 
   const on = (ev, fn) => ((handlers[ev] = handlers[ev] || []).push(fn));
@@ -92,23 +92,85 @@ const Player = (() => {
   }
 
   /** Toca a faixa agora: entra no deck livre com crossfade sobre o deck ativo. */
-  async function play(track) {
+  /** qual deck está livre para receber a próxima faixa */
+  function freeDeck() {
+    ensureCtx();
+    const out = active >= 0 ? decks[active] : null;
+    return decks[(out ? out.i + 1 : 0) % 2];
+  }
+
+  /**
+   * Carrega a faixa no deck livre e deixa ela parada, esperando a vez.
+   * É o que aparece na mesa como "na espera": já dá para ver capa, tempo e forma de onda
+   * antes de entrar no ar. Não toca nada.
+   */
+  function cue(track) {
+    if (!track || !track.file) return null;
+    ensureCtx();
+    const d = freeDeck();
+    if (d.state === 'playing' || d.state === 'fading') return null;   // deck ocupado: não mexe
+    if (d.track && d.track.id === track.id && d.state === 'cued') return d;
+    if (d.state !== 'idle') stopDeck(d);
+    d.track = track; d.state = 'cued'; d.transitioning = false;
+    d.url = URL.createObjectURL(track.file);
+    d.media.src = d.url;
+    d.media.load();
+    d.trim.gain.value = dbToLin(gainDb(track));
+    d.fade.gain.cancelScheduledValues(ctx.currentTime); d.fade.gain.value = 0;
+    emit('deck', d);
+    return d;
+  }
+
+  /** tira a faixa que estava esperando, sem tocar no que está no ar */
+  function uncue() {
+    const d = freeDeck();
+    if (d && d.state === 'cued') stopDeck(d);
+  }
+
+  /** a faixa que está esperando a vez, se houver */
+  function cued() { const d = decks.length ? freeDeck() : null; return d && d.state === 'cued' ? d : null; }
+
+  /**
+   * @param {object} track
+   * @param {{fade?:number}} [opts] fade: tempo da passagem em segundos; sem isso usa o do automix
+   */
+  async function play(track, opts = {}) {
     ensureCtx();
     if (ctx.state !== 'running') { try { await ctx.resume(); } catch (e) {} }
     const token = ++playToken;
     const out = active >= 0 ? decks[active] : null;
     const d = decks[(out ? out.i + 1 : 0) % 2];
-    if (d.state !== 'idle') stopDeck(d);
-    d.track = track; d.state = 'loading'; d.transitioning = false;
-    d.url = URL.createObjectURL(track.file);
-    d.media.src = d.url;
+    // se a faixa já estava esperando neste deck, aproveita o que foi carregado
+    const jaCarregada = d.state === 'cued' && d.track && d.track.id === track.id;
+    if (!jaCarregada) {
+      // troca a fonte direto. Chamar load() aqui cancelaria o play() logo abaixo
+      // e a faixa não entrava (erro "interrupted by a new load request").
+      if (d.state !== 'idle') {
+        d.media.pause();
+        if (d.url) { URL.revokeObjectURL(d.url); d.url = null; }
+        d.fade.gain.cancelScheduledValues(ctx.currentTime); d.fade.gain.value = 0;
+      }
+      d.track = track; d.url = URL.createObjectURL(track.file);
+      d.media.src = d.url;
+    }
+    d.state = 'loading'; d.transitioning = false;
     d.trim.gain.value = dbToLin(gainDb(track));
     d.fade.gain.cancelScheduledValues(ctx.currentTime); d.fade.gain.value = 0;
+    if (jaCarregada) { try { d.media.currentTime = 0; } catch (e) {} }
     emit('deck', d);
-    try { await d.media.play(); } catch (e) { if (token === playToken) { d.state = 'error'; emit('deck', d); emit('error', d, e); } return false; }
+    try { await d.media.play(); }
+    catch (e) {
+      if (token !== playToken) return false;
+      // uma troca rápida pode abortar o primeiro play; tenta de novo antes de desistir
+      if (e && e.name === 'AbortError') {
+        try { await d.media.play(); }
+        catch (e2) { d.state = 'error'; emit('deck', d); emit('error', d, e2); return false; }
+      } else { d.state = 'error'; emit('deck', d); emit('error', d, e); return false; }
+    }
     if (token !== playToken) return false;
     d.state = 'playing'; active = d.i;
-    const cf = out && out.state === 'playing' && !out.media.paused ? settings.crossfade : 0;
+    const padrao = opts.fade != null ? opts.fade : settings.crossfade;
+    const cf = out && out.state === 'playing' && !out.media.paused ? padrao : 0;
     ramp(d.fade.gain, 1, cf);
     if (out) {
       if (cf > 0) {
@@ -151,7 +213,7 @@ const Player = (() => {
     return { rms: 20 * Math.log10(rms + 1e-9), peak: 20 * Math.log10(p + 1e-9), reduction: limiter.reduction || 0 };
   }
 
-  return { on, play, toggle, stop, seek, position, set, settings, gainDb, current, isPlaying, level, decks, hasPicture };
+  return { on, play, cue, uncue, cued, toggle, stop, seek, position, set, settings, gainDb, current, isPlaying, level, decks, hasPicture };
 })();
 
 // a janela de vídeo (tela.html) lê o motor por aqui

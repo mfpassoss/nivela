@@ -82,6 +82,10 @@ h1,h2{margin:0;font-family:var(--font-display);text-transform:uppercase;letter-s
 .deck-letter{font-family:var(--font-display);font-weight:900;font-size:28px;line-height:1;color:var(--deck)}
 .deck-state{font-size:11px;text-transform:uppercase;letter-spacing:.16em;color:var(--ink-3)}
 .deck.live .deck-state{color:var(--deck)}
+.deck.esperando{border-color:color-mix(in srgb,var(--deck) 28%,var(--line))}
+.deck.esperando::before{opacity:.45}
+.deck.esperando .deck-state{color:color-mix(in srgb,var(--deck) 80%,var(--ink-2))}
+.deck.esperando .deck-title,.deck.esperando .deck-artist{opacity:.72}
 .deck-cover{width:96px;height:96px;border-radius:6px;background:#0a0908;border:1px solid var(--line);overflow:hidden;display:grid;place-items:center;color:var(--ink-3);font-size:30px}
 .deck-cover img{width:100%;height:100%;object-fit:cover;display:block}
 .deck-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none;background:#000}

@@ -82,12 +82,21 @@
         <option value="-10">-10 LUFS · alto</option>
       </select>
     </label>
-    <label class="knob-row"><span>Crossfade</span>
-      <select id="crossfade">
+    <label class="knob-row"><span>Emenda automática</span>
+      <select id="crossfade" title="Tempo da passagem quando uma faixa acaba e a próxima entra sozinha">
         <option value="0">sem mistura</option>
         <option value="3">3 s</option>
         <option value="6" selected>6 s</option>
         <option value="10">10 s</option>
+      </select>
+    </label>
+    <label class="knob-row"><span>Troca manual</span>
+      <select id="crossfadeManual" title="Tempo da passagem quando você troca a música na mão">
+        <option value="0">na hora</option>
+        <option value="2">2 s</option>
+        <option value="3" selected>3 s</option>
+        <option value="5">5 s</option>
+        <option value="8">8 s</option>
       </select>
     </label>
     <label class="switch-row"><input id="automix" type="checkbox" checked><span>Tocar sem parar (automix)</span></label>

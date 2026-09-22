@@ -1,5 +1,5 @@
 /* Service worker do Nivela: deixa o app abrir sem internet e atualiza sozinho quando há versão nova. */
-const VERSION = 'nivela-v6';
+const VERSION = 'nivela-v7';
 const SHELL = ['./', './index.html', './tela.html', './css/style.css', './manifest.webmanifest',
   './js/db.js', './js/zip.js', './js/tags.js', './js/genres.js', './js/analyzer.js', './js/player.js', './js/app.js', './js/pwa.js', './js/tela.js',
   './icons/icon-192.png', './icons/icon-512.png', './icons/icon-maskable-512.png', './fonts/fonts.css',

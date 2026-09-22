@@ -487,7 +487,7 @@
     if (!ids.length) return toast('Nada para tocar');
     state.queue = ids; state.mode = mode; state.source = source; state.loop = !!loop;
     state.pos = startId ? Math.max(0, ids.indexOf(startId)) : 0;
-    playIndex(state.pos);
+    playIndex(state.pos, { manual: true });
   }
   function refillQueue() {
     if (!state.source) return false;
@@ -497,8 +497,8 @@
     if (cur && ids.length > 1 && ids[0] === cur.id) ids.push(ids.shift());
     state.queue = ids; state.pos = -1; return true;
   }
-  let playing = false;
-  async function playIndex(i) {
+  /** manual = a pessoa mandou trocar; automático = o automix emendou sozinho */
+  async function playIndex(i, { manual = false } = {}) {
     const id = state.queue[i]; const t = id && state.tracks.get(id);
     if (!t) return next();
     if (!t.file && !(await ensureFile(t))) return next();
@@ -506,20 +506,35 @@
     if (t.status !== 'ok' && t.status !== 'error') { setDeckState('analisando…'); await ensureAnalyzed(id); }
     if (t.status === 'unsupported') { toast(`"${t.title}" está num formato que o Nivela não toca. Converta para MP4.`, 5000); return next(); }
     if (t.status === 'error') { toast(`Não consegui tocar "${t.title}"`); return next(); }
-    const ok = await Player.play(t);
+    const ok = await Player.play(t, manual ? { fade: Player.settings.crossfadeManual } : {});
     if (!ok) return;
     highlightCurrent(); renderNextUp();
-    const nid = state.queue[state.pos + 1]; if (nid) ensureAnalyzed(nid); // já deixa a próxima medida
+    prepararProxima();
   }
-  function next() {
+  function next(opts) {
     if (state.pos + 1 >= state.queue.length) {
       if (!refillQueue()) { Player.stop(); toast('Fim da fila'); return; }
     }
-    playIndex(state.pos + 1);
+    playIndex(state.pos + 1, opts);
   }
   function prev() {
     if (Player.position() > 5 || state.pos <= 0) { Player.seek(0); return; }
-    playIndex(state.pos - 1);
+    playIndex(state.pos - 1, { manual: true });
+  }
+
+  /**
+   * Deixa a próxima faixa da fila carregada e parada no deck livre, para ela aparecer
+   * na mesa esperando a vez. Também garante que já está medida quando entrar.
+   */
+  async function prepararProxima() {
+    const nid = state.queue[state.pos + 1];
+    const t = nid && state.tracks.get(nid);
+    if (!t) { Player.uncue(); renderDecks(); return; }
+    await ensureAnalyzed(nid);
+    if (state.queue[state.pos + 1] !== nid) return;        // a fila mudou no meio do caminho
+    if (!t.file && !(await ensureFile(t))) return;
+    if (t.status === 'error' || t.status === 'unsupported') return;
+    Player.cue(t);
   }
   async function playNow(t) {
     if (!t) return;
@@ -527,10 +542,10 @@
     if (!t.file && !(await ensureFile(t))) return toast('Arquivo não está disponível. Use Reconectar biblioteca.');
     if (!state.queue.length) {
       const ids = visibleIds(); state.queue = ids; state.mode = 'library'; state.source = null; state.loop = false;
-      return playIndex(Math.max(0, ids.indexOf(t.id)));
+      return playIndex(Math.max(0, ids.indexOf(t.id)), { manual: true });
     }
     state.queue.splice(state.pos + 1, 0, t.id);
-    playIndex(state.pos + 1);
+    playIndex(state.pos + 1, { manual: true });
   }
   /** Tira a música da biblioteca do Nivela. O arquivo no computador não é apagado. */
   function removeTrack(t) {
@@ -552,9 +567,9 @@
     if (!available(t)) return toast('Arquivo não está disponível. Use Reconectar biblioteca.');
     if (!state.queue.length) { state.queue = [t.id]; state.pos = -1; }
     else state.queue.splice(state.pos + 1, 0, t.id);
-    ensureAnalyzed(t.id);
     renderNextUp();
-    toast(`"${t.title}" entra logo depois`);
+    prepararProxima();                                   // já aparece no deck livre, esperando a vez
+    toast(`"${t.title}" fica esperando no deck livre`);
   }
 
   function renderNextUp() {
@@ -572,10 +587,16 @@
       toast('Isso é um clipe. Clique em "🖥 Tela de vídeo" para jogar a imagem na TV.', 6000);
     }
   });
-  Player.on('needNext', () => next());
+  Player.on('needNext', () => next());   // automix: usa o crossfade configurado
   Player.on('stopped', () => { renderDecks(); highlightCurrent(); el.btnPlay.textContent = '▶'; });
   Player.on('error', (d) => toast(`Erro ao tocar "${d.track?.title || ''}"`));
-  Player.on('deck', d => { renderDeck(d); el.btnPlay.textContent = Player.isPlaying() ? '❚❚' : '▶'; });
+  Player.on('deck', d => {
+    renderDeck(d);
+    el.btnPlay.textContent = Player.isPlaying() ? '❚❚' : '▶';
+    // o deck que acabou de sair da passagem fica livre: já recebe a próxima da fila,
+    // porque na hora em que a faixa entrou ele ainda estava terminando de sumir
+    if (d.state === 'idle' && Player.isPlaying() && !Player.cued()) prepararProxima();
+  });
   Player.on('progress', d => drawWave(d));
 
   /* ---------------- decks (visual) ---------------- */
@@ -586,7 +607,8 @@
   async function renderDeck(d) {
     const root = deckEls[d.i], t = d.track;
     root.classList.toggle('live', d.state === 'playing');
-    q(root, 'state').textContent = d.state === 'idle' ? 'livre' : d.state === 'loading' ? 'carregando' : d.state === 'fading' ? 'saindo' : d.state === 'error' ? 'erro' : d.media.paused ? 'pausado' : 'no ar';
+    q(root, 'state').textContent = d.state === 'idle' ? 'livre' : d.state === 'cued' ? 'na espera' : d.state === 'loading' ? 'carregando' : d.state === 'fading' ? 'saindo' : d.state === 'error' ? 'erro' : d.media.paused ? 'pausado' : 'no ar';
+    root.classList.toggle('esperando', d.state === 'cued');
     q(root, 'title').textContent = t ? t.title : '—';
     q(root, 'artist').innerHTML = t ? esc(t.artist || '&nbsp;') : '&nbsp;';
     const st = q(root, 'style'); st.textContent = t ? styleLabel(styleOf(t)) : 'estilo'; st.style.color = t ? styleColor(styleOf(t)) : '';
@@ -719,7 +741,7 @@
 
   deckEls.forEach((root, i) => ligarAlvo(root, t => {
     const live = Player.current();
-    // soltou no deck que está no ar: troca a faixa agora. No outro deck: vira a próxima.
+    // soltou no deck que está no ar: troca a faixa agora. No outro deck: fica esperando a vez.
     if (live && live.i === i) playNow(t); else tocarDepois(t);
   }));
   ligarAlvo($('#nextUpBox'), tocarDepois);
@@ -745,7 +767,7 @@
     if (state.queue.length && state.pos >= 0) return playIndex(state.pos);
     state.selectedStyles.size ? playStyles() : playAll();
   });
-  $('#btnNext').addEventListener('click', () => { if (state.queue.length) next(); });
+  $('#btnNext').addEventListener('click', () => { if (state.queue.length) next({ manual: true }); });
   $('#btnPrev').addEventListener('click', prev);
   $('#btnPlayStyles').addEventListener('click', playStyles);
   function playAll() { const pick = () => [...state.tracks.values()].filter(sorteavel).map(t => t.id); startQueue(smartShuffle(pick()), 'all', pick, true); }
@@ -753,6 +775,7 @@
   $('#volume').addEventListener('input', e => Player.set('volume', e.target.value / 100));
   $('#target').addEventListener('change', e => { Player.set('target', +e.target.value); DB.put('settings', +e.target.value, 'target'); renderLibrary(); renderDecks(); });
   $('#crossfade').addEventListener('change', e => { Player.set('crossfade', +e.target.value); DB.put('settings', +e.target.value, 'crossfade'); });
+  $('#crossfadeManual').addEventListener('change', e => { Player.set('crossfadeManual', +e.target.value); DB.put('settings', +e.target.value, 'crossfadeManual'); });
   $('#automix').addEventListener('change', e => Player.set('automix', e.target.checked));
   $('#normalize').addEventListener('change', e => { Player.set('normalize', e.target.checked); renderDecks(); });
   $('#btnFolder').addEventListener('click', pickFolder);
@@ -773,7 +796,7 @@
   document.addEventListener('keydown', e => {
     if (e.target.matches('input,select,textarea')) return;
     if (e.code === 'Space') { e.preventDefault(); el.btnPlay.click(); }
-    if (e.code === 'ArrowRight' && e.shiftKey) next();
+    if (e.code === 'ArrowRight' && e.shiftKey) next({ manual: true });
   });
 
   // arrastar e soltar (arquivos e pastas)
@@ -815,6 +838,7 @@
       const target = await DB.get('settings', 'target'); if (target) { $('#target').value = target; Player.set('target', target); }
       const cf = await DB.get('settings', 'crossfade'); if (cf != null) { $('#crossfade').value = cf; Player.set('crossfade', cf); }
       const tipo = await DB.get('settings', 'tipo'); if (tipo) { state.tipo = tipo; el.filterTipo.value = tipo; }
+      const cfm = await DB.get('settings', 'crossfadeManual'); if (cfm != null) { $('#crossfadeManual').value = cfm; Player.set('crossfadeManual', cfm); }
     } catch (e) { console.warn('sem persistência', e); }
     findDupes(); rebuildOrder(); renderLibrary(); renderStyles(); renderPlaylists(); renderDecks(); updateStatus();
     if (state.roots.length || state.fileHandles.length) {
