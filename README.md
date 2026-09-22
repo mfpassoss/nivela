@@ -21,9 +21,10 @@ Na próxima vez que abrir, o Nivela reabre as pastas sozinho e já traz o que ap
 Clipe entra na mesma biblioteca e usa a mesma mesa: mesmo nivelamento de volume, mesmo aleatório por estilo, mesma emenda automática. Música e clipe se misturam na mesma sequência.
 
 - **🖥 Tela de vídeo**: abre uma janela só com a imagem. Arraste para a TV ou projetor e aperte **Tela cheia** (ou tecle F, ou dê duplo clique). O som continua saindo pela janela principal.
+- **Ajustar ou preencher**: por padrão o clipe aparece inteiro, com tarja preta quando o formato não bate com o da TV. O botão **Ajustar à tela** troca para preencher a tela toda, cortando as bordas. A escolha fica guardada.
 - A imagem cruza junto com o som: quando um clipe emenda no outro, a imagem também faz a passagem.
 - Quando a faixa é só música, a tela mostra um cartão com o nome de quem está tocando, em vez de ficar preta.
-- Na janela da tela, **espaço** pausa e **seta para a direita** pula, sem precisar voltar para a janela principal.
+- Na janela da tela, **espaço** pausa e **seta para a direita** pula, sem precisar voltar para a janela principal. A barra de botões só some em tela cheia, e volta ao primeiro movimento do mouse.
 
 **Formatos**: MP4 com H.264 e AAC (o formato da quase totalidade dos clipes) e WebM. **MKV, AVI, MOV e WMV não tocam** — o Nivela avisa na hora da importação, marcando a faixa como "não suportado" em vez de falhar na hora do evento. Converta para MP4 e ela entra.
 
@@ -48,6 +49,19 @@ Cada faixa é medida pelo padrão ITU-R BS.1770 (LUFS), o mesmo que Spotify e Yo
 ## Como ele identifica o estilo
 
 Na ordem: artista conhecido (base com centenas de artistas brasileiros e internacionais) → tag de gênero do MP3 → palavras no nome do arquivo ou da pasta → artista no nome do arquivo. "Sertanejo" genérico é separado em sofrência ou universitário pelo BPM. Quando não há pista, a música vai para "Não identificado" e pode ser classificada manualmente no menu da coluna Estilo. A escolha manual é guardada.
+
+## Escolher só música ou só clipe
+
+Na linha da biblioteca há um seletor: **música e clipe**, **só música** ou **só clipe**. Ele vale para a lista e também para o que toca no aleatório, então dá para fazer um bloco só de clipe sem misturar com o resto. A escolha fica guardada e pode ser trocada no meio da festa: a fila é refeita na hora.
+
+## Arrastar para os decks
+
+Arraste qualquer faixa da biblioteca para cima de um deck:
+
+- **Deck que está no ar** → toca agora, com a emenda de sempre.
+- **Deck livre** (ou o campo **a seguir**) → entra como a próxima, sem cortar o que está tocando.
+
+O deck mostra o que vai acontecer antes de você soltar.
 
 ## Playlists
 

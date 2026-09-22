@@ -32,7 +32,8 @@ function createWindow() {
 
 app.whenReady().then(() => {
   // o app usa a File System Access API (escolher pasta e lembrar dela); o Electron pede autorização por aqui
-  const allowed = new Set(['fileSystem', 'media', 'clipboard-read', 'clipboard-sanitized-write']);
+  // 'fullscreen' precisa estar aqui, senão o botão Tela cheia da janela de vídeo não faz nada
+  const allowed = new Set(['fileSystem', 'media', 'fullscreen', 'pointerLock', 'clipboard-read', 'clipboard-sanitized-write']);
   session.defaultSession.setPermissionRequestHandler((wc, permission, cb) => cb(allowed.has(permission)));
   session.defaultSession.setPermissionCheckHandler((wc, permission) => allowed.has(permission));
   Menu.setApplicationMenu(null);

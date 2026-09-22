@@ -55,6 +55,7 @@
     </div>
     <canvas class="wave" data-role="wave" width="900" height="120"></canvas>
     <div class="deck-time mono"><span data-role="elapsed">0:00</span><span data-role="remain">-0:00</span></div>
+    <div class="deck-drop"><span></span></div>
   </section>
 
   <!-- MASTER -->
@@ -92,7 +93,7 @@
     <label class="switch-row"><input id="automix" type="checkbox" checked><span>Tocar sem parar (automix)</span></label>
     <label class="switch-row"><input id="normalize" type="checkbox" checked><span>Nivelar volume</span></label>
     </div>
-    <div class="next-up"><span class="lbl">a seguir</span><span id="nextUp" class="mono">—</span></div>
+    <div class="next-up" id="nextUpBox"><span class="lbl">a seguir</span><span id="nextUp" class="mono">—</span></div>
   </section>
 
   <!-- DECK B -->
@@ -110,6 +111,7 @@
     </div>
     <canvas class="wave" data-role="wave" width="900" height="120"></canvas>
     <div class="deck-time mono"><span data-role="elapsed">0:00</span><span data-role="remain">-0:00</span></div>
+    <div class="deck-drop"><span></span></div>
   </section>
 </main>
 
@@ -150,6 +152,11 @@
       <h2>Biblioteca <span id="libCount" class="count mono">0</span></h2>
       <input id="search" type="search" placeholder="buscar música, artista, estilo…">
       <select id="filterStyle" title="Filtrar por estilo"><option value="">todos os estilos</option></select>
+      <select id="filterTipo" title="Escolha tocar só música, só clipe, ou os dois misturados">
+        <option value="">música e clipe</option>
+        <option value="musica">só música</option>
+        <option value="clipe">só clipe</option>
+      </select>
       <button id="btnRescan" class="btn btn-sm" title="Procurar músicas novas nas pastas já adicionadas">⟳ Reescanear</button>
       <button id="btnDupes" class="btn btn-sm hidden" title="Mostrar só as músicas repetidas">⧉ Repetidas 0</button>
       <button id="btnPlayAll" class="btn btn-sm" title="Toca toda a biblioteca embaralhada">🔀 Tudo</button>

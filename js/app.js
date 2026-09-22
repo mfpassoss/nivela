@@ -4,7 +4,7 @@
   const el = {
     status: $('#status'), statusText: $('#statusText'), libBody: $('#libBody'), libEmpty: $('#libEmpty'), libCount: $('#libCount'),
     styles: $('#styles'), playlists: $('#playlists'), plDetail: $('#playlistDetail'), plName: $('#plName'), plTracks: $('#plTracks'),
-    search: $('#search'), filterStyle: $('#filterStyle'), nextUp: $('#nextUp'), toast: $('#toast'), btnPlay: $('#btnPlay'), vu: $('#vu'),
+    search: $('#search'), filterStyle: $('#filterStyle'), filterTipo: $('#filterTipo'), nextUp: $('#nextUp'), toast: $('#toast'), btnPlay: $('#btnPlay'), vu: $('#vu'),
     tableWrap: $('.table-wrap'), libMore: $('#libMore'),
   };
   const AUDIO_RE = /\.(mp3|m4a|aac|ogg|oga|opus|wav|flac|wma|aif|aiff)$/i;
@@ -27,7 +27,7 @@
 
   const state = {
     tracks: new Map(), order: [], playlists: [], selectedStyles: new Set(), currentPlaylist: null,
-    queue: [], pos: -1, mode: null, source: null, roots: [], fileHandles: [], rows: new Map(), zips: new Map(),
+    queue: [], pos: -1, mode: null, source: null, roots: [], fileHandles: [], rows: new Map(), zips: new Map(), tipo: '',
     visible: [], shown: 0, dupes: new Set(), onlyDupes: false,
   };
 
@@ -57,6 +57,8 @@
   // a faixa está tocável se o arquivo está em mãos ou se o zip de origem está disponível
   const available = t => !!(t.file || (t.zip && state.zips.has(t.zip.key)));
   const tocavel = t => available(t) && t.status !== 'error' && t.status !== 'unsupported';
+  // o que pode entrar no aleatório: precisa tocar e bater com o filtro de música/clipe
+  const sorteavel = t => tocavel(t) && tipoOk(t);
 
   function persist(t) {
     const { file, cover, _q, _qs, ...rest } = t;
@@ -311,10 +313,14 @@
     }
     return t._q;
   }
+  /** respeita a escolha entre música, clipe ou os dois */
+  const tipoOk = t => !state.tipo || (state.tipo === 'clipe' ? !!t.video : !t.video);
+
   function visibleIds() {
     const q = Genres.norm(el.search.value), fs = el.filterStyle.value;
     return state.order.filter(id => {
       const t = state.tracks.get(id);
+      if (!tipoOk(t)) return false;
       if (state.onlyDupes && !state.dupes.has(id)) return false;
       if (fs && styleOf(t) !== fs) return false;
       if (!q) return true;
@@ -354,7 +360,7 @@
     for (let i = state.shown; i < end; i++) {
       const id = state.visible[i], t = state.tracks.get(id);
       if (!t) continue;
-      const tr = document.createElement('tr'); tr.dataset.id = id;
+      const tr = document.createElement('tr'); tr.dataset.id = id; tr.draggable = true;
       state.rows.set(id, tr); frag.appendChild(tr); renderRow(t);
     }
     state.shown = end;
@@ -393,10 +399,18 @@
   });
   el.search.addEventListener('input', renderLibrary);
   el.filterStyle.addEventListener('change', renderLibrary);
+  el.filterTipo.addEventListener('change', e => {
+    state.tipo = e.target.value;
+    DB.put('settings', state.tipo, 'tipo').catch(() => {});
+    renderLibrary(); renderStyles();
+    // se já está tocando no aleatório, a fila é refeita para obedecer a escolha na hora
+    if (state.source && Player.isPlaying()) { if (refillQueue()) { renderNextUp(); } }
+    toast(state.tipo === 'clipe' ? 'Tocando só clipe' : state.tipo === 'musica' ? 'Tocando só música' : 'Música e clipe misturados');
+  });
 
   /* ---------------- estilos ---------------- */
   function styleCounts() {
-    const c = {}; for (const t of state.tracks.values()) if (t.status !== 'error') c[styleOf(t)] = (c[styleOf(t)] || 0) + 1; return c;
+    const c = {}; for (const t of state.tracks.values()) if (t.status !== 'error' && tipoOk(t)) c[styleOf(t)] = (c[styleOf(t)] || 0) + 1; return c;
   }
   function renderStyles() {
     const counts = styleCounts();
@@ -416,7 +430,7 @@
   });
   function idsForStyles() {
     const sel = state.selectedStyles;
-    return [...state.tracks.values()].filter(t => tocavel(t) && (!sel.size || sel.has(styleOf(t)))).map(t => t.id);
+    return [...state.tracks.values()].filter(t => sorteavel(t) && (!sel.size || sel.has(styleOf(t)))).map(t => t.id);
   }
   function playStyles() {
     const ids = idsForStyles();
@@ -531,6 +545,18 @@
     toast(`"${t.title}" saiu da biblioteca (o arquivo continua no computador)`);
   }
 
+  /** coloca a faixa como a próxima da fila, sem interromper o que está tocando */
+  function tocarDepois(t) {
+    if (!t) return;
+    if (t.status === 'unsupported') return toast(`"${t.title}" está num formato que o Nivela não toca.`, 5000);
+    if (!available(t)) return toast('Arquivo não está disponível. Use Reconectar biblioteca.');
+    if (!state.queue.length) { state.queue = [t.id]; state.pos = -1; }
+    else state.queue.splice(state.pos + 1, 0, t.id);
+    ensureAnalyzed(t.id);
+    renderNextUp();
+    toast(`"${t.title}" entra logo depois`);
+  }
+
   function renderNextUp() {
     const nid = state.queue[state.pos + 1]; const t = nid && state.tracks.get(nid);
     el.nextUp.textContent = t ? `${t.artist ? t.artist + ' – ' : ''}${t.title}` : (state.source ? '(nova rodada)' : '—');
@@ -641,6 +667,63 @@
   drawVu();
 
   /* ---------------- controles ---------------- */
+  /* ---------------- arrastar faixa da lista para os decks ---------------- */
+  const TIPO_ARRASTE = 'application/x-nivela-faixa';
+  let arrastandoId = null;
+
+  el.libBody.addEventListener('dragstart', e => {
+    const tr = e.target.closest('tr[data-id]'); if (!tr) return;
+    arrastandoId = tr.dataset.id;
+    tr.classList.add('arrastando');
+    e.dataTransfer.effectAllowed = 'copy';
+    e.dataTransfer.setData(TIPO_ARRASTE, arrastandoId);
+    e.dataTransfer.setData('text/plain', state.tracks.get(arrastandoId)?.title || '');
+    atualizarAlvos(true);
+  });
+  el.libBody.addEventListener('dragend', e => {
+    const tr = e.target.closest('tr'); tr && tr.classList.remove('arrastando');
+    arrastandoId = null; atualizarAlvos(false);
+    deckEls.forEach(d => d.classList.remove('drop-alvo'));
+    $('#nextUpBox').classList.remove('drop-alvo');
+  });
+
+  /** o rótulo de cada deck muda conforme o que o arraste vai fazer ali */
+  function atualizarAlvos(ligado) {
+    if (!ligado) return;
+    const live = Player.current();
+    deckEls.forEach((root, i) => {
+      const alvo = root.querySelector('.deck-drop span');
+      alvo.textContent = live && live.i === i ? 'tocar agora' : 'tocar a seguir';
+    });
+  }
+
+  function ligarAlvo(elemento, aoSoltar, classe = 'drop-alvo') {
+    elemento.addEventListener('dragover', e => {
+      if (!e.dataTransfer.types.includes(TIPO_ARRASTE)) return;
+      e.preventDefault(); e.dataTransfer.dropEffect = 'copy';
+      elemento.classList.add(classe);
+    });
+    elemento.addEventListener('dragleave', e => {
+      if (e.relatedTarget && elemento.contains(e.relatedTarget)) return;
+      elemento.classList.remove(classe);
+    });
+    elemento.addEventListener('drop', e => {
+      if (!e.dataTransfer.types.includes(TIPO_ARRASTE)) return;
+      e.preventDefault(); e.stopPropagation();
+      elemento.classList.remove(classe);
+      const id = e.dataTransfer.getData(TIPO_ARRASTE) || arrastandoId;
+      const t = id && state.tracks.get(id);
+      if (t) aoSoltar(t);
+    });
+  }
+
+  deckEls.forEach((root, i) => ligarAlvo(root, t => {
+    const live = Player.current();
+    // soltou no deck que está no ar: troca a faixa agora. No outro deck: vira a próxima.
+    if (live && live.i === i) playNow(t); else tocarDepois(t);
+  }));
+  ligarAlvo($('#nextUpBox'), tocarDepois);
+
   /* ---------------- janela de vídeo ---------------- */
   let tela = null;
   function abrirTela() {
@@ -665,7 +748,7 @@
   $('#btnNext').addEventListener('click', () => { if (state.queue.length) next(); });
   $('#btnPrev').addEventListener('click', prev);
   $('#btnPlayStyles').addEventListener('click', playStyles);
-  function playAll() { const pick = () => [...state.tracks.values()].filter(tocavel).map(t => t.id); startQueue(smartShuffle(pick()), 'all', pick, true); }
+  function playAll() { const pick = () => [...state.tracks.values()].filter(sorteavel).map(t => t.id); startQueue(smartShuffle(pick()), 'all', pick, true); }
   $('#btnPlayAll').addEventListener('click', playAll);
   $('#volume').addEventListener('input', e => Player.set('volume', e.target.value / 100));
   $('#target').addEventListener('change', e => { Player.set('target', +e.target.value); DB.put('settings', +e.target.value, 'target'); renderLibrary(); renderDecks(); });
@@ -695,10 +778,12 @@
 
   // arrastar e soltar (arquivos e pastas)
   let dragDepth = 0;
-  window.addEventListener('dragenter', e => { e.preventDefault(); if (++dragDepth === 1) document.body.classList.add('dragging'); });
-  window.addEventListener('dragleave', e => { e.preventDefault(); if (--dragDepth <= 0) { dragDepth = 0; document.body.classList.remove('dragging'); } });
-  window.addEventListener('dragover', e => e.preventDefault());
+  const arrasteDeArquivo = e => !e.dataTransfer || (!e.dataTransfer.types.includes(TIPO_ARRASTE) && e.dataTransfer.types.includes('Files'));
+  window.addEventListener('dragenter', e => { if (!arrasteDeArquivo(e)) return; e.preventDefault(); if (++dragDepth === 1) document.body.classList.add('dragging'); });
+  window.addEventListener('dragleave', e => { if (!arrasteDeArquivo(e)) return; e.preventDefault(); if (--dragDepth <= 0) { dragDepth = 0; document.body.classList.remove('dragging'); } });
+  window.addEventListener('dragover', e => { if (arrasteDeArquivo(e)) e.preventDefault(); });
   window.addEventListener('drop', async e => {
+    if (!arrasteDeArquivo(e)) return;
     e.preventDefault(); dragDepth = 0; document.body.classList.remove('dragging');
     const items = [...(e.dataTransfer.items || [])];
     const out = [];
@@ -729,6 +814,7 @@
       state.fileHandles = (await DB.get('settings', 'fileHandles')) || [];
       const target = await DB.get('settings', 'target'); if (target) { $('#target').value = target; Player.set('target', target); }
       const cf = await DB.get('settings', 'crossfade'); if (cf != null) { $('#crossfade').value = cf; Player.set('crossfade', cf); }
+      const tipo = await DB.get('settings', 'tipo'); if (tipo) { state.tipo = tipo; el.filterTipo.value = tipo; }
     } catch (e) { console.warn('sem persistência', e); }
     findDupes(); rebuildOrder(); renderLibrary(); renderStyles(); renderPlaylists(); renderDecks(); updateStatus();
     if (state.roots.length || state.fileHandles.length) {

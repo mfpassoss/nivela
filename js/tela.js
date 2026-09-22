@@ -14,22 +14,67 @@
   addEventListener('resize', resize); resize();
 
   // barra de botões some sozinha, como em player de vídeo
-  let hideTimer;
+  let hideTimer, sobreBarra = false;
+  const barra = document.querySelector('.bar');
   function poke() {
     document.body.classList.add('show-cursor');
     clearTimeout(hideTimer);
-    hideTimer = setTimeout(() => document.body.classList.remove('show-cursor'), 2500);
+    if (sobreBarra || !document.fullscreenElement) return;
+    hideTimer = setTimeout(() => document.body.classList.remove('show-cursor'), 3000);
   }
-  addEventListener('mousemove', poke); poke();
+  addEventListener('mousemove', poke);
+  barra.addEventListener('mouseenter', () => { sobreBarra = true; poke(); });
+  barra.addEventListener('mouseleave', () => { sobreBarra = false; poke(); });
+  poke();
 
-  const full = () => (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen().catch(() => {}));
-  document.getElementById('btnFull').addEventListener('click', full);
+  const btnFull = document.getElementById('btnFull');
+  async function full() {
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else await document.documentElement.requestFullscreen({ navigationUI: 'hide' });
+    } catch (e) {
+      // não deu: avisa em vez de não fazer nada, e ensina a saída manual
+      aviso('Não consegui abrir tela cheia aqui. Use a tecla F11 da janela.');
+    }
+  }
+  btnFull.addEventListener('click', full);
+  document.addEventListener('fullscreenchange', () => {
+    const cheia = !!document.fullscreenElement;
+    btnFull.textContent = cheia ? 'Sair da tela cheia' : 'Tela cheia';
+    document.body.classList.toggle('cheia', cheia);
+    poke();
+  });
   document.getElementById('btnInfo').addEventListener('click', () => { showInfo = !showInfo; });
+
+  // --- ajustar ou preencher a tela ---
+  let modo = 'ajustar';
+  try { modo = localStorage.getItem('nivela-ajuste') || 'ajustar'; } catch (e) {}
+  const btnAjuste = document.getElementById('btnAjuste');
+  function pintarAjuste() {
+    btnAjuste.textContent = modo === 'ajustar' ? 'Ajustar à tela' : 'Preencher a tela';
+    btnAjuste.title = modo === 'ajustar'
+      ? 'Mostra o clipe inteiro, com tarja preta quando o formato não bate. Clique para preencher.'
+      : 'Preenche a tela toda, cortando as bordas do clipe. Clique para mostrar inteiro.';
+  }
+  btnAjuste.addEventListener('click', () => {
+    modo = modo === 'ajustar' ? 'preencher' : 'ajustar';
+    try { localStorage.setItem('nivela-ajuste', modo); } catch (e) {}
+    pintarAjuste();
+  });
+  pintarAjuste();
+
+  let avisoTimer;
+  function aviso(txt) {
+    const el = document.getElementById('aviso');
+    el.textContent = txt; el.classList.add('on');
+    clearTimeout(avisoTimer); avisoTimer = setTimeout(() => el.classList.remove('on'), 4000);
+  }
   addEventListener('dblclick', full);
   addEventListener('keydown', e => {
     if (e.key === 'f' || e.key === 'F' || e.key === 'F11') { e.preventDefault(); full(); }
     if (e.key === 'Escape' && document.fullscreenElement) document.exitFullscreen();
     if (e.key === 'i' || e.key === 'I') showInfo = !showInfo;
+    if (e.key === 'a' || e.key === 'A') btnAjuste.click();
     // espaço e setas continuam comandando o player da janela principal
     if (main && !main.closed && (e.code === 'Space' || e.code === 'ArrowRight')) {
       e.preventDefault();
@@ -38,12 +83,12 @@
     }
   });
 
-  /** desenha o quadro cobrindo a tela inteira, sem distorcer (corta o que sobra) */
+  /** desenha o quadro sem distorcer: "ajustar" mostra o clipe inteiro, "preencher" corta as bordas */
   function cover(el, alpha) {
     const vw = el.videoWidth, vh = el.videoHeight;
     if (!vw || !vh) return false;
     const W = cv.width, H = cv.height;
-    const s = Math.max(W / vw, H / vh);
+    const s = modo === 'preencher' ? Math.max(W / vw, H / vh) : Math.min(W / vw, H / vh);
     const w = vw * s, h = vh * s;
     ctx.globalAlpha = alpha;
     ctx.drawImage(el, (W - w) / 2, (H - h) / 2, w, h);
@@ -52,14 +97,18 @@
   }
 
   let fundo = null, fundoW = 0, fundoH = 0;
-  function pintarFundo() {
+  function pintarFundo(alphaGradiente) {
     const W = cv.width, H = cv.height;
+    ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);   // tarja preta limpa em volta do clipe
+    if (alphaGradiente <= 0.01) return;
     if (!fundo || fundoW !== W || fundoH !== H) {
       fundo = ctx.createRadialGradient(W * 0.3, 0, 0, W * 0.3, 0, H * 1.6);
       fundo.addColorStop(0, '#2a2114'); fundo.addColorStop(0.6, '#14120f'); fundo.addColorStop(1, '#000');
       fundoW = W; fundoH = H;
     }
+    ctx.globalAlpha = alphaGradiente;
     ctx.fillStyle = fundo; ctx.fillRect(0, 0, W, H);
+    ctx.globalAlpha = 1;
   }
 
   /** cartão de "tocando agora", para a tela não ficar preta quando a faixa é só música.
@@ -114,7 +163,7 @@
     // quanto de imagem vai aparecer neste quadro: o cartão de texto some na mesma medida
     let visivel = 0;
     for (const d of ativos) if (d.media.videoWidth > 0) visivel = Math.max(visivel, Math.min(1, d.fade.gain.value));
-    pintarFundo();
+    pintarFundo(1 - visivel);
     card(P, Math.max(0, 1 - visivel * 2));  // o texto sai antes do meio da emenda, para não vazar sobre a imagem
     for (const d of ativos) cover(d.media, Math.min(1, d.fade.gain.value));
     info(P, visivel);

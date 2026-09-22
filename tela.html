@@ -8,17 +8,24 @@
 <style>
   :root{--amber:#ffb02e;--ink:#f1e9dc;--ink-3:#6f675b}
   *{box-sizing:border-box}
-  html,body{margin:0;height:100%;background:#000;overflow:hidden;cursor:none;
+  html,body{margin:0;height:100%;background:#000;overflow:hidden;
     font-family:"Instrument Sans",sans-serif;color:var(--ink)}
-  body.show-cursor{cursor:default}
   canvas{display:block;width:100%;height:100%}
+  /* a barra só some em tela cheia, e volta ao primeiro movimento do mouse.
+     Fora da tela cheia ela fica parada, senão os botões somem na hora de clicar. */
   .bar{position:fixed;left:0;right:0;bottom:0;display:flex;gap:10px;align-items:center;justify-content:center;
-    padding:10px;background:linear-gradient(0deg,rgba(0,0,0,.85),transparent);opacity:0;transition:opacity .25s;pointer-events:none}
-  body.show-cursor .bar{opacity:1;pointer-events:auto}
+    padding:10px;background:linear-gradient(0deg,rgba(0,0,0,.88),transparent);transition:opacity .25s;z-index:5}
+  body.cheia{cursor:none}
+  body.cheia .bar{opacity:0;pointer-events:none}
+  body.cheia.show-cursor{cursor:default}
+  body.cheia.show-cursor .bar{opacity:1;pointer-events:auto}
   .bar button{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);color:var(--ink);
     border-radius:6px;padding:7px 14px;font:600 13px "Instrument Sans",sans-serif;cursor:pointer}
   .bar button:hover{border-color:var(--amber);color:var(--amber)}
   .bar .hint{color:var(--ink-3);font-size:12px;margin-left:8px}
+  .aviso{position:fixed;top:18px;left:50%;transform:translateX(-50%) translateY(-12px);opacity:0;transition:.25s;
+    background:rgba(20,18,15,.94);border:1px solid rgba(255,176,46,.5);color:var(--ink);padding:10px 16px;border-radius:8px;font-size:14px;pointer-events:none}
+  .aviso.on{opacity:1;transform:translateX(-50%) translateY(0)}
   .lost{position:fixed;inset:0;display:none;place-items:center;text-align:center;padding:40px;font-size:18px;color:var(--ink-3)}
   body.lost .lost{display:grid}
   body.lost canvas{opacity:.15}
@@ -26,11 +33,13 @@
 </head>
 <body>
 <canvas id="tela"></canvas>
+<div id="aviso" class="aviso"></div>
 <div class="lost">A janela principal do Nivela foi fechada.<br>Feche esta tela e abra de novo pelo botão <b>Tela de vídeo</b>.</div>
 <div class="bar">
   <button id="btnFull">Tela cheia</button>
+  <button id="btnAjuste">Ajustar à tela</button>
   <button id="btnInfo">Mostrar/ocultar nome</button>
-  <span class="hint">Mova o mouse para ver estes botões. Duplo clique também abre tela cheia.</span>
+  <span class="hint">F = tela cheia · A = ajustar/preencher · I = nome · espaço = pausa</span>
 </div>
 <script src="js/tela.js"></script>
 </body>

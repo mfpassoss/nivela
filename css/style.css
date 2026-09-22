@@ -71,6 +71,13 @@ h1,h2{margin:0;font-family:var(--font-display);text-transform:uppercase;letter-s
 .deck-b{--deck:var(--teal)}
 .deck.live{border-color:color-mix(in srgb,var(--deck) 45%,var(--line))}
 .deck.live::before{box-shadow:0 0 18px var(--deck)}
+.deck-drop{position:absolute;inset:0;border-radius:10px;display:none;place-items:center;
+  background:color-mix(in srgb,var(--deck) 14%,rgba(10,9,8,.88));border:2px dashed var(--deck);z-index:3}
+.deck.drop-alvo .deck-drop{display:grid}
+.deck-drop span{font-family:var(--font-display);font-size:24px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--deck)}
+.next-up.drop-alvo{outline:2px dashed var(--amber);outline-offset:3px;border-radius:6px}
+.lib tr[draggable=true]{cursor:grab}
+.lib tr.arrastando{opacity:.4}
 .deck-head{grid-column:1/-1;display:flex;align-items:center;gap:10px}
 .deck-letter{font-family:var(--font-display);font-weight:900;font-size:28px;line-height:1;color:var(--deck)}
 .deck-state{font-size:11px;text-transform:uppercase;letter-spacing:.16em;color:var(--ink-3)}
